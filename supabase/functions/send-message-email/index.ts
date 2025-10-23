@@ -105,48 +105,40 @@ serve(async (req) => {
     console.log('Creating Supabase client...');
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get the current user
-    console.log('Getting user from auth...');
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
-
-    console.log('User error:', userError);
-    console.log('User found:', !!user);
-    console.log('User email:', user?.email);
-
-    if (userError) {
-      console.error('Auth error details:', JSON.stringify(userError));
-      throw new Error(`User authentication failed: ${userError.message}`);
-    }
+    // Extract user ID from JWT token
+    console.log('Extracting user from JWT token...');
+    const token = authHeader.replace('Bearer ', '');
     
-    if (!user) {
-      console.error('No user returned from auth.getUser()');
-      throw new Error('User not authenticated - no user data');
+    // Decode JWT token to get user info
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const userId = payload.sub;
+    const userEmail = payload.email;
+    
+    console.log('User ID from token:', userId);
+    console.log('User email from token:', userEmail);
+    
+    if (!userId) {
+      console.error('No user ID found in token');
+      throw new Error('Invalid authentication token');
     }
 
     // Get user details from users table
     const { data: userData, error: userDataError } = await supabaseClient
       .from('users')
       .select('name')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (userDataError) {
       console.error('Error fetching user data:', userDataError);
-      throw new Error('Failed to fetch user details');
+      // Don't fail if user data not found, use email as fallback
+      console.log('Using email as sender name fallback');
     }
 
-    const senderName = userData?.name || user.email || 'Pitch Fork User';
+    const senderName = userData?.name || userEmail || 'Pitch Fork User';
 
     // Parse request body
     const { companyName, messageTitle, messageDetail }: EmailRequest = await req.json();
