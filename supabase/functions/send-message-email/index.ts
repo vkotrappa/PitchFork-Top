@@ -33,19 +33,17 @@ async function sendEmailViaGmail(
   // Create email content
   const emailBody = `From: ${senderName}
 Company: ${companyName}
-Reply-To: admin@pitchfork.com
 
 Message:
 ${messageDetail}
 
----
 This message was sent via Pitch Fork platform.`;
 
   try {
     const client = new SMTPClient({
       connection: {
         hostname: 'smtp.gmail.com',
-        port: 587,
+        port: 465,
         tls: true,
         auth: {
           username: gmailUser,
@@ -57,9 +55,8 @@ This message was sent via Pitch Fork platform.`;
     console.log('Connecting to Gmail SMTP...');
 
     await client.send({
-      from: `${senderName} <${gmailUser}>`,
+      from: gmailUser,
       to: toEmail,
-      replyTo: 'admin@pitchfork.com',
       subject: messageTitle,
       content: emailBody,
     });
