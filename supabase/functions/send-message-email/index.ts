@@ -84,16 +84,28 @@ serve(async (req) => {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     console.log('Auth header present:', !!authHeader);
+    console.log('Auth header value:', authHeader ? authHeader.substring(0, 20) + '...' : 'null');
     
     if (!authHeader) {
       console.error('No authorization header provided');
       throw new Error('No authorization header');
     }
 
+    // Check environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    console.log('Supabase URL present:', !!supabaseUrl);
+    console.log('Service role key present:', !!serviceRoleKey);
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('Missing Supabase environment variables');
+      throw new Error('Missing Supabase configuration');
+    }
+
     console.log('Creating Supabase client...');
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         global: {
           headers: { Authorization: authHeader },
@@ -149,7 +161,7 @@ serve(async (req) => {
 
     // Send email
     await sendEmailViaGmail(
-      'vkotrappa@gmail.com',
+      'meganventures@gmail.com',
       senderName,
       companyName,
       messageTitle,
