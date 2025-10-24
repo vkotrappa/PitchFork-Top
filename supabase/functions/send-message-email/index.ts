@@ -122,9 +122,9 @@ serve(async (req) => {
       throw new Error('Invalid authentication token');
     }
 
-    // Get user details from users table
+    // Get user details from user_profiles table
     const { data: userData, error: userDataError } = await supabaseClient
-      .from('users')
+      .from('user_profiles')
       .select('name')
       .eq('id', userId)
       .single();
