@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!companyName) {
+    if (!requestCompanyName) {
       return new Response(
         JSON.stringify({ error: 'companyName is required' }),
         {
