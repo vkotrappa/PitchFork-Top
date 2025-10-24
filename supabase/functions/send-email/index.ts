@@ -15,6 +15,8 @@ interface RequestBody {
 serve(async (req) => {
   try {
     console.log('=== Send Email Function Started ===');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
     // Parse request body
     const { 
@@ -101,7 +103,8 @@ ${body}
 
 This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
 
-    // Send email via Gmail SMTP
+    // Send email via Gmail SMTP with timeout
+    console.log('Creating SMTP client...');
     const client = new SMTPClient({
       connection: {
         hostname: 'smtp.gmail.com',
@@ -115,17 +118,28 @@ This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
     });
 
     console.log('Connecting to Gmail SMTP...');
+    
+    // Add timeout to prevent hanging
+    const sendEmailWithTimeout = async () => {
+      return await Promise.race([
+        client.send({
+          from: 'pitchforkmanager@gmail.com',
+          to: toEmail,
+          subject: subject,
+          content: emailBody,
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('SMTP timeout after 30 seconds')), 30000)
+        )
+      ]);
+    };
 
-    await client.send({
-      from: 'pitchforkmanager@gmail.com',
-      to: toEmail,
-      subject: subject,
-      content: emailBody,
-    });
-
+    await sendEmailWithTimeout();
     console.log('Email sent successfully!');
 
+    console.log('Closing SMTP connection...');
     await client.close();
+    console.log('SMTP connection closed');
 
     return new Response(
       JSON.stringify({ 
@@ -142,11 +156,15 @@ This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
 
   } catch (error) {
     console.error('Error in send-email function:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        errorType: error.name,
+        timestamp: new Date().toISOString()
       }),
       { 
         status: 500,

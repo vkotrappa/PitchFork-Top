@@ -1381,6 +1381,24 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         }
         
         console.log('Calling email function with session...');
+        console.log('Function URL:', functionUrl);
+        console.log('Session token present:', !!session.access_token);
+        
+        const emailPayload = {
+          toEmail: 'vkotrappa@gmail.com',
+          toName: 'Admin',
+          subject: messageTitle.trim(),
+          body: messageDetail.trim(),
+          senderName: 'Admin@PitchFork.com',
+          companyName: company.name,
+          messageType: 'investor'
+        };
+        
+        console.log('Email payload:', emailPayload);
+        
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
         
         const emailResponse = await fetch(functionUrl, {
           method: 'POST',
@@ -1388,16 +1406,11 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({
-            toEmail: 'vkotrappa@gmail.com',
-            toName: 'Admin',
-            subject: messageTitle.trim(),
-            body: messageDetail.trim(),
-            senderName: 'Admin@PitchFork.com',
-            companyName: company.name,
-            messageType: 'investor'
-          })
+          body: JSON.stringify(emailPayload),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
 
         console.log('Email response status:', emailResponse.status);
         
