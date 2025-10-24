@@ -1273,7 +1273,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       // Send email notification
       try {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
-        const functionUrl = `${supabaseUrl}/functions/v1/send-message-email`;
+        const functionUrl = `${supabaseUrl}/functions/v1/send-email`;
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.access_token) {
