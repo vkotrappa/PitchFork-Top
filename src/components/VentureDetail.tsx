@@ -786,10 +786,10 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       });
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
-      const functionUrl = `${supabaseUrl}/functions/v1/analyze-company`;
+      const functionUrl = `${supabaseUrl}/functions/v1/analyze-company-background`;
       const session = await supabase.auth.getSession();
       
-      console.log('Making request to:', functionUrl);
+      console.log('Starting background analysis:', functionUrl);
       
       const response = await fetch(functionUrl, {
         method: 'POST',
@@ -800,64 +800,82 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         body: JSON.stringify(requestBody)
       });
 
-      console.log('Response status:', response.status);
+      console.log('Background analysis response status:', response.status);
       
       const responseText = await response.text();
-      console.log('Response body:', responseText);
+      console.log('Background analysis response body:', responseText);
 
       if (!response.ok) {
-        let errorMessage = `Failed to perform ${config.label.toLowerCase()} analysis`;
+        let errorMessage = `Failed to start ${config.label.toLowerCase()} analysis`;
         try {
           const errorData = JSON.parse(responseText);
           if (errorData.error) {
-            errorMessage = `Analysis failed: ${errorData.error}`;
+            errorMessage = `Analysis failed to start: ${errorData.error}`;
           }
           console.error('Parsed error:', errorData);
         } catch (e) {
           console.error('Could not parse error response:', responseText);
-          errorMessage = `Failed to perform ${config.label.toLowerCase()} analysis (${response.status})`;
+          errorMessage = `Failed to start ${config.label.toLowerCase()} analysis (${response.status})`;
         }
         setMessageStatus({ type: 'error', text: errorMessage });
         return;
       }
 
-      const analysisResult = JSON.parse(responseText);
-      console.log('Analysis result:', analysisResult);
+      const result = JSON.parse(responseText);
+      console.log('Background analysis started:', result);
 
-      if (analysisResult?.error) {
-        console.error(`${config.label} analysis function returned error:`, analysisResult.error);
-        console.error('Error details:', analysisResult.details);
-        setMessageStatus({ type: 'error', text: `Analysis failed: ${analysisResult.error}` });
-        return;
-      }
+      // Set up real-time subscription to listen for analysis completion
+      const analysisSubscription = supabase
+        .channel(`analysis-${analysisId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'analysis',
+          filter: `id=eq.${analysisId}`
+        }, (payload) => {
+          console.log('Analysis status update:', payload);
+          const newStatus = payload.new.status;
+          
+          if (newStatus === 'completed') {
+            setMessageStatus({ type: 'success', text: `${config.label} analysis completed successfully!` });
+            
+            // Update analysis history
+            const currentDate = new Date().toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric' 
+            });
+            const currentHistory = analysis.length > 0 && analysis[0].history ? analysis[0].history : '';
+            const newHistoryEntry = `${currentDate}: ${config.historyLabel} - Complete`;
+            const updatedHistory = currentHistory ? `${currentHistory}\n${newHistoryEntry}` : newHistoryEntry;
+            
+            supabase
+              .from('analysis')
+              .update({ history: updatedHistory })
+              .eq('id', analysisId);
+            
+            loadAnalysis(company.id); // Reload analysis
+            loadAnalysisReports(company.id); // Reload reports
+            analysisSubscription.unsubscribe(); // Clean up subscription
+            
+            // Auto-hide success message after 5 seconds
+            setTimeout(() => {
+              setMessageStatus(null);
+            }, 5000);
+          } else if (newStatus === 'failed') {
+            setMessageStatus({ type: 'error', text: `${config.label} analysis failed` });
+            analysisSubscription.unsubscribe(); // Clean up subscription
+          }
+        })
+        .subscribe();
 
-      setMessageStatus({ type: 'success', text: `${config.label} analysis completed successfully!` });
+      // Show immediate feedback that analysis has started
+      setMessageStatus({ type: 'info', text: `${config.label} analysis started in background...` });
       
-      // Update analysis history
-      const currentDate = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      });
-      const currentHistory = analysis.length > 0 && analysis[0].history ? analysis[0].history : '';
-      const newHistoryEntry = `${currentDate}: ${config.historyLabel} - Complete`;
-      const updatedHistory = currentHistory ? `${currentHistory}\n${newHistoryEntry}` : newHistoryEntry;
-      
-      await supabase
-        .from('analysis')
-        .update({ history: updatedHistory })
-        .eq('id', analysisId);
-      
-      // Reload analysis to show updated history
-      await loadAnalysis(company.id);
-      
-      // Reload analysis reports to show the new report
-      await loadAnalysisReports(company.id);
-      
-      // Auto-hide success message after 5 seconds
+      // Set a timeout to clean up subscription after 5 minutes
       setTimeout(() => {
-        setMessageStatus(null);
-      }, 5000);
+        analysisSubscription.unsubscribe();
+      }, 5 * 60 * 1000);
 
     } catch (error) {
       console.error(`Error performing ${config.label.toLowerCase()} analysis:`, error);
