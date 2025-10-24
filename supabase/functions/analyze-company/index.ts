@@ -201,7 +201,9 @@ Deno.serve(async (req: Request) => {
     console.log(`Processing ${analysisType} analysis for:`, { companyId, investorUserId });
 
     // Step 1: Get company details
+    console.log('Step 1: Getting company details, requestCompanyName:', requestCompanyName);
     let companyName = requestCompanyName;
+    console.log('Step 1: companyName initialized to:', companyName);
     if (!companyName) {
       const { data: company, error: companyError } = await supabaseAdmin
         .from('companies')
@@ -213,6 +215,7 @@ Deno.serve(async (req: Request) => {
         throw new Error('Company not found');
       }
       companyName = company.name;
+      console.log('Step 1: companyName from database:', companyName);
     }
 
     // Step 2: Use provided analysis ID or find/create analysis entry
@@ -288,6 +291,13 @@ Deno.serve(async (req: Request) => {
       
       for (const report of requestExistingReports) {
         console.log('Processing existing report:', report.type, report.path);
+        console.log('Report object:', JSON.stringify(report, null, 2));
+        
+        // Validate report path
+        if (!report.path) {
+          console.error('Report path is missing:', report);
+          throw new Error(`Report path is missing for report type: ${report.type}`);
+        }
         
         // Generate signed URL for the existing report
         const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
@@ -329,10 +339,18 @@ Deno.serve(async (req: Request) => {
       console.log(`Processing ${requestDocuments.length} documents...`);
       
       for (const doc of requestDocuments) {
-      console.log('Generating signed URL for:', doc.path);
-      const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
-        .from('company-documents')
-        .createSignedUrl(doc.path, 3600);
+        console.log('Generating signed URL for:', doc.path);
+        console.log('Document object:', JSON.stringify(doc, null, 2));
+        
+        // Validate document path
+        if (!doc.path) {
+          console.error('Document path is missing:', doc);
+          throw new Error(`Document path is missing for file: ${doc.name}`);
+        }
+        
+        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
+          .from('company-documents')
+          .createSignedUrl(doc.path, 3600);
 
       if (signedUrlError || !signedUrlData) {
         console.error('Error generating signed URL:', signedUrlError);
@@ -561,9 +579,11 @@ Deno.serve(async (req: Request) => {
 
     // Step 11: Upload PDF to Supabase Storage
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-    const companySlug = (companyName || 'unknown-company').toLowerCase()
+    console.log('Step 11: companyName before slug generation:', companyName);
+    const companySlug = (companyName || 'unknown-company').toString().toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
+    console.log('Step 11: companySlug generated:', companySlug);
     
     // Generate filename - use cleaner names for certain types
     let fileNameType = analysisType;
@@ -689,6 +709,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // Step 16: Generate signed URL for the PDF
+    console.log('Step 16: Generating signed URL for reportPath:', reportPath);
+    if (!reportPath) {
+      throw new Error('Report path is undefined - cannot generate signed URL');
+    }
     const { data: pdfSignedUrl } = await supabaseAdmin.storage
       .from('analysis-output-docs')
       .createSignedUrl(reportPath, 3600);
