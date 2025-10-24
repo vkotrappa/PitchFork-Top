@@ -161,6 +161,30 @@ serve(async (req) => {
 
     console.log('Sending email from:', fromName);
 
+    // Validate required fields
+    console.log('Validating email fields...');
+    console.log('toEmail:', toEmail);
+    console.log('subject:', subject);
+    console.log('body:', body);
+    console.log('fromName:', fromName);
+    console.log('companyName:', companyName);
+
+    if (!toEmail) {
+      throw new Error('toEmail is required');
+    }
+    if (!subject) {
+      throw new Error('subject is required');
+    }
+    if (!body) {
+      throw new Error('body is required');
+    }
+    if (!fromName) {
+      throw new Error('fromName is required');
+    }
+    if (!companyName) {
+      throw new Error('companyName is required');
+    }
+
     // Create email content
     const emailBody = `From: ${fromName}
 Company: ${companyName}
@@ -169,6 +193,8 @@ Message:
 ${body}
 
 This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
+
+    console.log('Email body created:', emailBody);
 
     // Send email via Gmail SMTP with timeout
     console.log('Creating SMTP client...');
