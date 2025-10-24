@@ -796,16 +796,29 @@ const FounderSubmission: React.FC<FounderSubmissionProps> = ({ isDark, toggleThe
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} mb-8`}>
             <div className="p-12 text-center">
               <Loader className="w-16 h-16 mx-auto mb-6 text-orange-600 animate-spin" />
-              <h3 className="text-2xl font-bold mb-2">Analyzing Your Pitch Deck with AI</h3>
-              <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
-                Our AI is reading your pitch deck and extracting key information...
-              </p>
+              <h3 className="text-2xl font-bold mb-4">AI Analysis in Progress</h3>
+              
+              <div className={`max-w-2xl mx-auto ${isDark ? 'text-gray-300' : 'text-gray-600'} text-left mb-6`}>
+                <p className="text-lg mb-4">
+                  We are now using AI to extract key information from your pitch deck for your company information. 
+                  You will have an opportunity to edit it and submit it to multiple investors.
+                </p>
+                
+                <p className="text-lg mb-4">
+                  The system will automatically run a preliminary "Screening" of the deck against their basic 
+                  screening/filter criteria (such as revenue, industry, etc.) and send a basic recommendation 
+                  to continue analysis or not.
+                </p>
+              </div>
+
               <div className={`max-w-md mx-auto ${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm space-y-2 mb-6`}>
                 <p>✓ Uploading pitch deck to secure storage</p>
                 <p>✓ Analyzing with GPT-4 Turbo</p>
                 <p>✓ Extracting company details</p>
+                <p>✓ Preparing for investor screening</p>
                 <p className="font-semibold">⏳ This usually takes 30-60 seconds</p>
               </div>
+              
               <div className="flex justify-center space-x-2">
                 <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
