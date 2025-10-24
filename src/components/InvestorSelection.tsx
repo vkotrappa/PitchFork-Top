@@ -121,7 +121,7 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
           .join(', ');
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
-        const functionUrl = `${supabaseUrl}/functions/v1/send-message-email`;
+        const functionUrl = `${supabaseUrl}/functions/v1/send-email`;
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.access_token) {
@@ -134,12 +134,16 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
               'Authorization': `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({
-              companyName: 'Pitch Deck Submission',
-              messageTitle: 'Pitchdeck Submitted',
-              messageDetail: `Thank you for submitting your pitchdeck. It was sent to: ${selectedInvestorNames}. We will get back to you when they evaluate and decide.
+              toEmail: 'vkotrappa@gmail.com',
+              toName: 'Admin',
+              subject: 'Pitchdeck Submitted',
+              body: `Thank you for submitting your pitchdeck. It was sent to: ${selectedInvestorNames}. We will get back to you when they evaluate and decide.
 
 Best regards,
-Admin@PitchFork.com`
+Admin@PitchFork.com`,
+              senderName: 'Admin@PitchFork.com',
+              companyName: 'Pitch Deck Submission',
+              messageType: 'admin'
             })
           });
 
