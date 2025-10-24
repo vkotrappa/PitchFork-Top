@@ -29,6 +29,7 @@ async function sendEmailViaGmail(
 
   console.log('Initializing SMTP client...');
   console.log('Gmail user:', gmailUser);
+  console.log('Sending from: pitchforkmanager@gmail.com');
 
   // Create email content
   const emailBody = `From: ${senderName}
@@ -37,7 +38,7 @@ Company: ${companyName}
 Message:
 ${messageDetail}
 
-This message was sent via Pitch Fork platform.`;
+This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
 
   try {
     const client = new SMTPClient({
@@ -55,7 +56,7 @@ This message was sent via Pitch Fork platform.`;
     console.log('Connecting to Gmail SMTP...');
 
     await client.send({
-      from: gmailUser,
+      from: 'pitchforkmanager@gmail.com',
       to: toEmail,
       subject: messageTitle,
       content: emailBody,
