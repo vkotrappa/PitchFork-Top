@@ -122,11 +122,11 @@ serve(async (req) => {
       throw new Error('Invalid authentication token');
     }
 
-    // Get user details from user_profiles table
+    // Get user details from investor_details table (for investors) or use email fallback
     const { data: userData, error: userDataError } = await supabaseClient
-      .from('user_profiles')
+      .from('investor_details')
       .select('name')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
 
     if (userDataError) {
