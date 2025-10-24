@@ -14,11 +14,20 @@ VALUES (
 
 **REPORT STRUCTURE:**
 
-**EXECUTIVE SUMMARY**
-Create a brief 1-2 paragraph overview synthesizing the key points from all reports:
-- Overall investment thesis
-- Critical success factors
-- Main strengths and concerns
+**EXECUTIVE SUMMARY & HIGH-LEVEL SCORECARD**
+Create a comprehensive executive summary section (approximately 1 page) that includes:
+
+1. **Investment Thesis**: A clear statement of the investment opportunity
+2. **High-Level Scorecard**: A summary table with key metrics and scores from all analyses:
+   - Team Score (from Team Analysis)
+   - Product Score (from Product Analysis) 
+   - Market Score (from Market Analysis)
+   - Financial Score (from Financial Analysis)
+   - Overall Recommendation
+3. **Key Strengths**: Top 3-5 strengths identified across all analyses
+4. **Key Concerns**: Top 3-5 risks or concerns identified across all analyses
+5. **Critical Success Factors**: What needs to happen for this investment to succeed
+6. **Investment Recommendation**: Clear go/no-go recommendation with rationale
 
 **TEAM ANALYSIS REPORT**
 Include the complete Team Analysis report exactly as it was generated. Do not modify any content.

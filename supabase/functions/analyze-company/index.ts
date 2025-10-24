@@ -72,7 +72,7 @@ const analysisConfig = {
     promptName: 'Create-Detail-Report',
     reportTitle: 'Comprehensive Detail Report',
     assistantName: 'Report Assembler',
-    assistantInstructions: 'You are an expert at assembling comprehensive investment reports. Take the provided analysis reports and include them as complete sections in a single document. Do NOT summarize, condense, or synthesize - include the full content of each report as separate sections. Add an executive summary at the beginning.',
+    assistantInstructions: 'You are an expert at assembling comprehensive investment reports. Create a detailed executive summary with high-level scorecard first, then include the complete content of each analysis report as separate sections. Do NOT summarize or condense the individual reports - include their full content. Focus on creating a comprehensive executive summary that synthesizes key insights from all reports.',
     vectorStoreName: 'Detail Report Assembly',
     historyLabel: 'Create-DetailReport',
   },
