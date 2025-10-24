@@ -1291,9 +1291,13 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
+            toEmail: 'vkotrappa@gmail.com',
+            toName: 'Admin',
+            subject: messageTitle.trim(),
+            body: messageTitle.trim(),
+            senderName: 'Admin@PitchFork.com',
             companyName: company.name,
-            messageTitle: messageTitle.trim(),
-            messageDetail: messageTitle.trim(),
+            messageType: 'investor'
           })
         });
 
