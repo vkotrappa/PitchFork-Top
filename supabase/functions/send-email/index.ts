@@ -13,8 +13,12 @@ interface RequestBody {
 }
 
 serve(async (req) => {
+  console.log('=== FUNCTION CALLED ===');
+  console.log('Method:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return new Response(null, {
       status: 200,
       headers: {
@@ -32,6 +36,16 @@ serve(async (req) => {
     console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
     // Parse request body
+    console.log('Parsing request body...');
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('Request body parsed successfully:', requestBody);
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      throw new Error(`Failed to parse request body: ${parseError.message}`);
+    }
+    
     const { 
       toEmail = 'vkotrappa@gmail.com', // Default admin email
       toName = 'Admin',
@@ -40,7 +54,7 @@ serve(async (req) => {
       senderName = 'Admin@PitchFork.com',
       companyName = 'PitchFork Platform',
       messageType = 'general'
-    }: RequestBody = await req.json();
+    }: RequestBody = requestBody;
 
     console.log('Request parameters:', {
       toEmail,

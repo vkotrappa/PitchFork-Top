@@ -1384,6 +1384,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         console.log('Calling email function with session...');
         console.log('Function URL:', functionUrl);
         console.log('Session token present:', !!session.access_token);
+        console.log('Session token value:', session.access_token);
+        console.log('Session object:', session);
         
         const emailPayload = {
           toEmail: 'vkotrappa@gmail.com',
