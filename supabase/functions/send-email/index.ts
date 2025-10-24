@@ -78,18 +78,44 @@ serve(async (req) => {
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
     console.log('Auth header present:', !!authHeader);
+    console.log('Auth header value:', authHeader);
 
     if (!authHeader) {
       throw new Error('Authorization header missing');
     }
 
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new Error('Authorization header must start with "Bearer "');
+    }
+
     // Extract user info from JWT token
     const token = authHeader.replace('Bearer ', '');
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userId = payload.sub;
-    const userEmail = payload.email;
+    console.log('Token extracted:', token ? 'Present' : 'Missing');
+    
+    if (!token) {
+      throw new Error('Token is empty after removing Bearer prefix');
+    }
+    
+    let userId, userEmail;
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid JWT token format');
+      }
+      
+      const payload = JSON.parse(atob(tokenParts[1]));
+      userId = payload.sub;
+      userEmail = payload.email;
 
-    console.log('User info:', { userId, userEmail });
+      console.log('User info:', { userId, userEmail });
+      
+      if (!userId) {
+        throw new Error('User ID not found in token');
+      }
+    } catch (jwtError) {
+      console.error('JWT parsing error:', jwtError);
+      throw new Error(`Invalid JWT token: ${jwtError.message}`);
+    }
 
     // Get user details based on message type
     let fromName = senderName;
