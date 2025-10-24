@@ -133,6 +133,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestBody: RequestBody = await req.json();
+    console.log('Request body received:', JSON.stringify(requestBody, null, 2));
+    
     const { 
       companyId,
       companyName: requestCompanyName,
@@ -142,6 +144,15 @@ Deno.serve(async (req: Request) => {
       documents: requestDocuments,
       existingReports: requestExistingReports
     } = requestBody;
+    
+    console.log('Destructured values:', {
+      companyId,
+      requestCompanyName,
+      analysisId: requestAnalysisId,
+      analysisType,
+      documentsCount: requestDocuments?.length,
+      existingReportsCount: requestExistingReports?.length
+    });
 
     const investorUserId = user.id;
 
