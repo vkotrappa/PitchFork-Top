@@ -988,12 +988,13 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
       // Prepare existing reports summary for the AI
       const reportsSummary = analysisReports.map(report => ({
-        type: report.report_type,
-        path: report.report_path,
-        generated_at: report.generated_at
+        type: report.report_type || 'unknown',
+        path: report.report_path || '',
+        generated_at: report.generated_at || new Date().toISOString()
       }));
 
       console.log('Existing reports for detail compilation:', reportsSummary);
+      console.log('Documents for detail compilation:', documents);
 
       // Call the analyze-company edge function with detail-report type
       const { data: { session } } = await supabase.auth.getSession();
@@ -1015,9 +1016,9 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             analysisId: analysisId,
             analysisType: 'detail-report',
             documents: documents.map(doc => ({
-              id: doc.id,
-              name: doc.name,
-              path: doc.path
+              id: doc.id || '',
+              name: doc.name || '',
+              path: doc.path || ''
             })),
             existingReports: reportsSummary
           }),

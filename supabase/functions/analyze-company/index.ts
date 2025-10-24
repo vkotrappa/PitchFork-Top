@@ -156,6 +156,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (!companyName) {
+      return new Response(
+        JSON.stringify({ error: 'companyName is required' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     if (!analysisType || !analysisConfig[analysisType]) {
       return new Response(
         JSON.stringify({ error: 'Valid analysisType is required (team, product, market, financial, scorecard, detail-report, diligence-questions, or founder-report)' }),
@@ -540,7 +550,7 @@ Deno.serve(async (req: Request) => {
 
     // Step 11: Upload PDF to Supabase Storage
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-    const companySlug = companyName.toLowerCase()
+    const companySlug = (companyName || 'unknown-company').toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
     
