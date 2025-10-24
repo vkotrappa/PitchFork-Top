@@ -1369,6 +1369,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       }
 
       // Send email notification
+      let emailSent = false;
       try {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
         const functionUrl = `${supabaseUrl}/functions/v1/send-email`;
@@ -1413,20 +1414,30 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         clearTimeout(timeoutId);
 
         console.log('Email response status:', emailResponse.status);
+        console.log('Email response headers:', Object.fromEntries(emailResponse.headers.entries()));
+        
+        const responseText = await emailResponse.text();
+        console.log('Email response body:', responseText);
         
         if (!emailResponse.ok) {
-          const errorText = await emailResponse.text();
-          console.error('Failed to send email notification:', errorText);
+          console.error('Failed to send email notification:', responseText);
           // Don't fail the whole operation if email fails
         } else {
           console.log('Email notification sent successfully');
+          console.log('Response data:', responseText);
+          emailSent = true;
         }
       } catch (emailError) {
         console.error('Error sending email notification:', emailError);
         // Don't fail the whole operation if email fails
       }
 
-      setMessageStatus({ type: 'success', text: 'Message sent successfully!' });
+      // Only show success message if email was actually sent
+      if (emailSent) {
+        setMessageStatus({ type: 'success', text: 'Message sent successfully!' });
+      } else {
+        setMessageStatus({ type: 'warning', text: 'Message saved but email notification failed' });
+      }
       setMessageTitle('');
       setMessageDetail('');
       
