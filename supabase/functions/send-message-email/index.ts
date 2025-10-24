@@ -150,8 +150,8 @@ serve(async (req) => {
 
     // Send email
     await sendEmailViaGmail(
-      'meganventures@gmail.com',
-      senderName,
+      'vkotrappa@gmail.com',
+      'Admin@PitchFork.com',
       companyName,
       messageTitle,
       messageDetail
