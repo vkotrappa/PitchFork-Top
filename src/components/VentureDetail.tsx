@@ -1083,13 +1083,16 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       let analysisId = analysis.length > 0 ? analysis[0].id : '';
 
       // Prepare existing reports summary for the AI
-      const reportsSummary = analysisReports.map(report => ({
-        type: report.report_type,
-        path: report.report_path,
-        generated_at: report.generated_at
-      }));
+      const reportsSummary = analysisReports
+        .filter(report => report.report_path) // Filter out reports with missing paths
+        .map(report => ({
+          type: report.report_type,
+          path: report.report_path,
+          generated_at: report.generated_at
+        }));
 
       console.log('Existing reports for diligence questions:', reportsSummary);
+      console.log('Filtered reports count:', reportsSummary.length, 'out of', analysisReports.length);
 
       // Call the analyze-company edge function with diligence-questions type
       const { data: { session } } = await supabase.auth.getSession();
@@ -1172,13 +1175,16 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       let analysisId = analysis.length > 0 ? analysis[0].id : '';
 
       // Prepare existing reports summary for the AI
-      const reportsSummary = analysisReports.map(report => ({
-        type: report.report_type,
-        path: report.report_path,
-        generated_at: report.generated_at
-      }));
+      const reportsSummary = analysisReports
+        .filter(report => report.report_path) // Filter out reports with missing paths
+        .map(report => ({
+          type: report.report_type,
+          path: report.report_path,
+          generated_at: report.generated_at
+        }));
 
       console.log('Existing reports for founder feedback:', reportsSummary);
+      console.log('Filtered reports count:', reportsSummary.length, 'out of', analysisReports.length);
 
       // Call the analyze-company edge function with founder-report type
       const { data: { session } } = await supabase.auth.getSession();
