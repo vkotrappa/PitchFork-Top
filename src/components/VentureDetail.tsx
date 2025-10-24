@@ -836,7 +836,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           console.log('Analysis status update:', payload);
           const newStatus = payload.new.status;
           
-          if (newStatus === 'completed') {
+          if (newStatus === 'Analyzed') {
             setMessageStatus({ type: 'success', text: `${config.label} analysis completed successfully!` });
             
             // Update analysis history

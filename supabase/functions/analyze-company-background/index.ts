@@ -190,11 +190,11 @@ serve(async (req) => {
         } else {
           console.log('Background analysis completed successfully');
           
-          // Update analysis status to completed
+          // Update analysis status to Analyzed
           await supabaseAdmin
             .from('analysis')
             .update({ 
-              status: 'completed',
+              status: 'Analyzed',
               updated_at: new Date().toISOString()
             })
             .eq('id', analysisId);
