@@ -76,20 +76,34 @@ serve(async (req) => {
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get authorization header
+    console.log('All request headers:', Object.fromEntries(req.headers.entries()));
+    
     const authHeader = req.headers.get('Authorization');
     console.log('Auth header present:', !!authHeader);
     console.log('Auth header value:', authHeader);
+    
+    // Try alternative header names
+    const authHeaderLower = req.headers.get('authorization');
+    console.log('Lowercase auth header:', authHeaderLower);
+    
+    const authHeaderMixed = req.headers.get('AUTHORIZATION');
+    console.log('Uppercase auth header:', authHeaderMixed);
 
-    if (!authHeader) {
-      throw new Error('Authorization header missing');
+    // Use whichever header is available
+    const finalAuthHeader = authHeader || authHeaderLower || authHeaderMixed;
+    
+    if (!finalAuthHeader) {
+      throw new Error('Authorization header missing - tried Authorization, authorization, and AUTHORIZATION');
     }
 
-    if (!authHeader.startsWith('Bearer ')) {
+    console.log('Using auth header:', finalAuthHeader);
+
+    if (!finalAuthHeader.startsWith('Bearer ')) {
       throw new Error('Authorization header must start with "Bearer "');
     }
 
     // Extract user info from JWT token
-    const token = authHeader.replace('Bearer ', '');
+    const token = finalAuthHeader.replace('Bearer ', '');
     console.log('Token extracted:', token ? 'Present' : 'Missing');
     
     if (!token) {
