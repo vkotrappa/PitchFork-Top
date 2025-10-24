@@ -588,27 +588,6 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
                       </span>
                     </div>
 
-                    {/* Score and Valuation */}
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                      <div>
-                        <p className={`text-xs font-semibold ${isDark ? 'text-silver-400' : 'text-navy-500'} mb-1`}>Score</p>
-                          {company.overall_score ? (
-                            <p className="text-lg font-bold text-gold-600">{company.overall_score}/10</p>
-                        ) : (
-                          <p className={`text-sm ${isDark ? 'text-silver-400' : 'text-navy-500'}`}>Pending</p>
-                        )}
-                      </div>
-                      <div>
-                        <p className={`text-xs font-semibold ${isDark ? 'text-silver-400' : 'text-navy-500'} mb-1`}>Valuation</p>
-                          {company.valuation_value && company.valuation_units ? (
-                            <p className="text-lg font-bold text-success-600">
-                              {company.valuation_value}{company.valuation_units}
-                            </p>
-                          ) : (
-                            <p className={`text-sm ${isDark ? 'text-silver-400' : 'text-navy-500'}`}>TBD</p>
-                          )}
-                      </div>
-                    </div>
 
                     {/* Recommendation */}
                     <div>
