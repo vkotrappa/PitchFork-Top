@@ -113,6 +113,47 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
       // Wait for all screening to complete (or fail)
       await Promise.allSettled(screeningPromises);
 
+      // Send email notification to admin
+      try {
+        const selectedInvestorNames = investors
+          .filter(investor => selectedInvestors.has(investor.user_id))
+          .map(investor => investor.name)
+          .join(', ');
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
+        const functionUrl = `${supabaseUrl}/functions/v1/send-admin-email`;
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session?.access_token) {
+          console.error('No valid session for email notification:', sessionError);
+        } else {
+          const emailResponse = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              companyName: 'Pitch Deck Submission',
+              messageTitle: 'Pitchdeck Submitted',
+              messageDetail: `Thank you for submitting your pitchdeck. It was sent to: ${selectedInvestorNames}. We will get back to you when they evaluate and decide.
+
+Best regards,
+Admin@PitchFork.com`
+            })
+          });
+
+          if (!emailResponse.ok) {
+            console.error('Failed to send admin email notification:', await emailResponse.text());
+          } else {
+            console.log('Admin email notification sent successfully');
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending admin email notification:', emailError);
+        // Don't fail the whole operation if email fails
+      }
+
       setMessage({
         type: 'success',
         text: `AI screening complete! Submitted to ${selectedInvestors.size} investor${selectedInvestors.size > 1 ? 's' : ''}`
