@@ -14,8 +14,36 @@ interface RequestBody {
 
 // Helper function to extract field values using regex
 function extractField(text: string, pattern: RegExp): string | null {
-  const match = text.match(new RegExp(`${pattern.source}[\\s:]*([^\\n,}]+)`, 'i'));
-  return match ? match[1].trim().replace(/['"]/g, '') : null;
+  // Try multiple patterns to extract field values
+  const patterns = [
+    // Pattern 1: "field: value" or "field value"
+    new RegExp(`${pattern.source}[\\s:]+([^\\n,}]+)`, 'i'),
+    // Pattern 2: "field" followed by any text until newline or comma
+    new RegExp(`${pattern.source}[^\\n,]*?([^\\n,]+)`, 'i'),
+    // Pattern 3: Look for quoted values
+    new RegExp(`${pattern.source}[\\s:]*["']([^"']+)["']`, 'i')
+  ];
+  
+  for (const regex of patterns) {
+    const match = text.match(regex);
+    if (match && match[1]) {
+      let value = match[1].trim();
+      
+      // Clean up the value
+      value = value
+        .replace(/^[:;|•\-\s]+/, '') // Remove leading colons, semicolons, pipes, bullets, dashes, spaces
+        .replace(/[:;|•\-\s]+$/, '') // Remove trailing colons, semicolons, pipes, bullets, dashes, spaces
+        .replace(/['"]/g, '') // Remove quotes
+        .trim();
+      
+      // Return only if we have meaningful content
+      if (value && value.length > 0 && value !== 'null' && value !== 'undefined') {
+        return value;
+      }
+    }
+  }
+  
+  return null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -293,6 +321,17 @@ Your response must start with { and end with }. No additional text before or aft
       console.log('Cleaned JSON string:', jsonString);
       
       extractedInfo = JSON.parse(jsonString);
+      
+      // Clean up any field values that might have colons or other formatting issues
+      for (const key in extractedInfo) {
+        if (extractedInfo[key] && typeof extractedInfo[key] === 'string') {
+          extractedInfo[key] = extractedInfo[key]
+            .replace(/^[:;|•\-\s]+/, '') // Remove leading colons, semicolons, pipes, bullets, dashes, spaces
+            .replace(/[:;|•\-\s]+$/, '') // Remove trailing colons, semicolons, pipes, bullets, dashes, spaces
+            .trim();
+        }
+      }
+      
       console.log('Successfully parsed JSON:', extractedInfo);
       
     } catch (parseError) {
