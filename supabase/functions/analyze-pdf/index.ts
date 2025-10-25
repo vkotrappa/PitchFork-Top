@@ -150,9 +150,19 @@ Deno.serve(async (req: Request) => {
     console.log('Adding message to thread...');
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
-      content: `Analyze this pitch deck PDF and extract the following information. You MUST respond with ONLY valid JSON format - no additional text, explanations, or formatting.
+      content: `You are analyzing a pitch deck PDF for a startup company. Please carefully read through the entire document and extract the following information.
 
-Extract these fields and return them as a JSON object:
+IMPORTANT: This is a pitch deck, so it should contain company information. Look for:
+- Company name (usually on the first few slides)
+- Industry/sector (what business they're in)
+- Team members (founders, executives, key personnel)
+- Website URL (contact info, footer, or social media)
+- Valuation (funding rounds, investment amounts, company worth)
+- Revenue (current revenue, projections, financial metrics)
+- Business description (what the company does, problem they solve)
+- Funding terms (investment structure, amount seeking)
+
+Extract this information and return it as a JSON object with these exact fields:
 {
   "company_name": "string or null",
   "industry": "string or null", 
@@ -170,8 +180,21 @@ CRITICAL REQUIREMENTS:
 3. For URL: Must be fully formed with https:// protocol
 4. For valuation: Look for explicit valuations or funding terms like "SAFE at $36M cap"
 5. For team members: List as comma-separated string like "John Smith (CEO), Jane Doe (CTO)"
+6. For description: 2-3 sentences about what the company does
 
-IMPORTANT: Your response must start with { and end with }. No additional text before or after the JSON.`
+If you cannot find ANY information in the document, return:
+{
+  "company_name": null,
+  "industry": null, 
+  "key_team_members": null,
+  "url": null,
+  "valuation": null,
+  "revenue": null,
+  "description": null,
+  "funding_terms": null
+}
+
+Your response must start with { and end with }. No additional text before or after the JSON.`
     });
 
     console.log('Running assistant...');
@@ -228,7 +251,10 @@ IMPORTANT: Your response must start with { and end with }. No additional text be
     }
 
     const responseText = lastMessage.content[0].text.value;
-    console.log('Assistant response:', responseText);
+    console.log('=== RAW AI RESPONSE ===');
+    console.log('Response length:', responseText.length);
+    console.log('Response content:', responseText);
+    console.log('=== END RAW AI RESPONSE ===');
 
     let extractedInfo;
     try {
