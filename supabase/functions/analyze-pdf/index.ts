@@ -47,16 +47,18 @@ function extractField(text: string, pattern: RegExp): string | null {
 }
 
 Deno.serve(async (req: Request) => {
-  console.log('=== ANALYZE-PDF FUNCTION CALLED ===');
-  console.log('Method:', req.method);
-  console.log('Headers:', Object.fromEntries(req.headers.entries()));
-
+  // Handle CORS preflight requests first
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, {
       status: 200,
       headers: corsHeaders,
     });
   }
+
+  console.log('=== ANALYZE-PDF FUNCTION CALLED ===');
+  console.log('Method:', req.method);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
