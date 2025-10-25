@@ -308,7 +308,15 @@ const FounderSubmission: React.FC<FounderSubmissionProps> = ({ isDark, toggleThe
         throw new Error('Not authenticated');
       }
 
+      console.log('Calling analyze-pdf function with:', {
+        file_path: filePath,
+        company_id: companyId,
+        session_present: !!session.access_token
+      });
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-pdf`;
+      console.log('API URL:', apiUrl);
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -321,11 +329,14 @@ const FounderSubmission: React.FC<FounderSubmissionProps> = ({ isDark, toggleThe
         })
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error('AI extraction error:', errorData);
         // Don't fail the whole process - just show warning and allow manual entry
-        setMessage({ type: 'error', text: 'AI extraction failed. Please fill in the form manually.' });
+        setMessage({ type: 'error', text: `AI extraction failed: ${errorData.error || 'Unknown error'}. Please fill in the form manually.` });
         setCurrentStep('company');
         setIsAnalyzing(false);
         return;

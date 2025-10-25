@@ -1,5 +1,5 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
-import { OpenAI } from 'npm:openai@4.73.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { OpenAI } from 'https://esm.sh/openai@4.73.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +13,10 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  console.log('=== ANALYZE-PDF FUNCTION CALLED ===');
+  console.log('Method:', req.method);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
+
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -25,6 +29,12 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
+    console.log('Environment check:', {
+      supabaseUrl: !!supabaseUrl,
+      supabaseServiceKey: !!supabaseServiceKey,
+      openaiApiKey: !!openaiApiKey
+    });
+
     if (!openaiApiKey) {
       throw new Error('OPENAI_API_KEY environment variable is not set');
     }
@@ -32,7 +42,10 @@ Deno.serve(async (req: Request) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const openai = new OpenAI({ apiKey: openaiApiKey });
 
-    const { file_path, company_id }: RequestBody = await req.json();
+    const requestBody = await req.json();
+    console.log('Request body:', requestBody);
+    
+    const { file_path, company_id }: RequestBody = requestBody;
 
     if (!file_path) {
       return new Response(
