@@ -95,24 +95,27 @@ Deno.serve(async (req: Request) => {
     console.log('Downloading PDF from signed URL...');
     const pdfResponse = await fetch(signedUrl);
     if (!pdfResponse.ok) {
+      console.error('PDF download failed:', pdfResponse.status, pdfResponse.statusText);
       throw new Error(`Failed to download PDF: ${pdfResponse.statusText}`);
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
-    console.log('PDF downloaded, size:', pdfBuffer.byteLength);
+    console.log('PDF downloaded successfully, size:', pdfBuffer.byteLength, 'bytes');
 
     // Extract filename from file_path
     const filename = file_path.split('/').pop() || 'document.pdf';
+    console.log('Extracted filename:', filename);
 
     // Create a File object from the buffer
     const pdfFile = new File([pdfBuffer], filename, { type: 'application/pdf' });
+    console.log('Created File object:', pdfFile.name, pdfFile.size, 'bytes');
 
     console.log('Uploading file to OpenAI...');
     const file = await openai.files.create({
       file: pdfFile,
       purpose: 'assistants',
     });
-    console.log('File uploaded to OpenAI:', file.id);
+    console.log('File uploaded to OpenAI successfully:', file.id);
 
     console.log('Creating assistant...');
     const assistant = await openai.beta.assistants.create({
@@ -121,15 +124,16 @@ Deno.serve(async (req: Request) => {
       model: 'gpt-4-turbo-preview',
       tools: [{ type: 'file_search' }],
     });
-    console.log('Assistant created:', assistant.id);
+    console.log('Assistant created successfully:', assistant.id);
 
     console.log('Creating vector store...');
     const vectorStore = await openai.beta.vectorStores.create({
       name: 'PDF Analysis',
       file_ids: [file.id],
     });
-    console.log('Vector store created:', vectorStore.id);
+    console.log('Vector store created successfully:', vectorStore.id);
 
+    console.log('Updating assistant with vector store...');
     await openai.beta.assistants.update(assistant.id, {
       tool_resources: {
         file_search: {
@@ -137,10 +141,11 @@ Deno.serve(async (req: Request) => {
         },
       },
     });
+    console.log('Assistant updated with vector store successfully');
 
     console.log('Creating thread...');
     const thread = await openai.beta.threads.create();
-    console.log('Thread created:', thread.id);
+    console.log('Thread created successfully:', thread.id);
 
     console.log('Adding message to thread...');
     await openai.beta.threads.messages.create(thread.id, {
@@ -173,18 +178,45 @@ IMPORTANT: Your response must start with { and end with }. No additional text be
     const run = await openai.beta.threads.runs.create(thread.id, {
       assistant_id: assistant.id,
     });
+    console.log('Run created successfully:', run.id);
 
     let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
     console.log('Initial run status:', runStatus.status);
 
+    let attempts = 0;
+    const maxAttempts = 60; // 60 seconds timeout
+
     while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
+      attempts++;
+      console.log(`Run attempt ${attempts}/${maxAttempts}, status:`, runStatus.status);
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Run timeout after 60 seconds');
+      }
+      
       await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      console.log('Run status:', runStatus.status);
     }
 
+    console.log('Final run status:', runStatus.status);
+
     if (runStatus.status !== 'completed') {
-      throw new Error(`Run failed with status: ${runStatus.status}`);
+      console.error('Run failed. Full status object:', JSON.stringify(runStatus, null, 2));
+      
+      let errorDetails = `Run failed with status: ${runStatus.status}`;
+      
+      if (runStatus.last_error) {
+        errorDetails += `\nError code: ${runStatus.last_error.code}`;
+        errorDetails += `\nError message: ${runStatus.last_error.message}`;
+        console.error('Last error:', runStatus.last_error);
+      }
+      
+      if (runStatus.status === 'failed' && runStatus.incomplete_details) {
+        console.error('Incomplete details:', runStatus.incomplete_details);
+        errorDetails += `\nIncomplete reason: ${runStatus.incomplete_details.reason}`;
+      }
+      
+      throw new Error(errorDetails);
     }
 
     console.log('Retrieving messages...');
@@ -261,23 +293,52 @@ IMPORTANT: Your response must start with { and end with }. No additional text be
 
     // Update the companies table with extracted information
     console.log('Updating companies table with extracted data...');
+    console.log('Company ID:', companyId);
+    console.log('Extracted info to update:', extractedInfo);
+    
     const updateData: any = {};
 
-    if (extractedInfo.company_name) updateData.name = extractedInfo.company_name;
-    if (extractedInfo.industry) updateData.industry = extractedInfo.industry;
+    if (extractedInfo.company_name) {
+      updateData.name = extractedInfo.company_name;
+      console.log('Adding company_name to update:', extractedInfo.company_name);
+    }
+    if (extractedInfo.industry) {
+      updateData.industry = extractedInfo.industry;
+      console.log('Adding industry to update:', extractedInfo.industry);
+    }
     if (extractedInfo.key_team_members) {
       // Convert array to string if needed
       updateData.key_team_members = Array.isArray(extractedInfo.key_team_members)
         ? extractedInfo.key_team_members.join(', ')
         : extractedInfo.key_team_members;
+      console.log('Adding key_team_members to update:', updateData.key_team_members);
     }
-    if (extractedInfo.url) updateData.url = extractedInfo.url;
-    if (extractedInfo.valuation) updateData.valuation = extractedInfo.valuation;
-    if (extractedInfo.revenue) updateData.revenue = extractedInfo.revenue;
-    if (extractedInfo.description) updateData.description = extractedInfo.description;
-    if (extractedInfo.funding_terms) updateData.funding_terms = extractedInfo.funding_terms;
+    if (extractedInfo.url) {
+      updateData.url = extractedInfo.url;
+      console.log('Adding url to update:', extractedInfo.url);
+    }
+    if (extractedInfo.valuation) {
+      updateData.valuation = extractedInfo.valuation;
+      console.log('Adding valuation to update:', extractedInfo.valuation);
+    }
+    if (extractedInfo.revenue) {
+      updateData.revenue = extractedInfo.revenue;
+      console.log('Adding revenue to update:', extractedInfo.revenue);
+    }
+    if (extractedInfo.description) {
+      updateData.description = extractedInfo.description;
+      console.log('Adding description to update:', extractedInfo.description);
+    }
+    if (extractedInfo.funding_terms) {
+      updateData.funding_terms = extractedInfo.funding_terms;
+      console.log('Adding funding_terms to update:', extractedInfo.funding_terms);
+    }
+
+    console.log('Final update data:', updateData);
+    console.log('Number of fields to update:', Object.keys(updateData).length);
 
     if (Object.keys(updateData).length > 0) {
+      console.log('Executing companies table update...');
       const { error: updateError } = await supabaseAdmin
         .from('companies')
         .update(updateData)
@@ -285,10 +346,14 @@ IMPORTANT: Your response must start with { and end with }. No additional text be
 
       if (updateError) {
         console.error('Error updating companies table:', updateError);
+        console.error('Update data that failed:', updateData);
+        console.error('Company ID used:', companyId);
         // Don't throw error here, just log it
       } else {
-        console.log('Companies table updated successfully');
+        console.log('Companies table updated successfully with data:', updateData);
       }
+    } else {
+      console.log('No data to update in companies table - all fields were null');
     }
 
     console.log('Cleaning up OpenAI resources...');
