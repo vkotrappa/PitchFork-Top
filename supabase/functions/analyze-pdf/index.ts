@@ -102,6 +102,11 @@ Deno.serve(async (req: Request) => {
     const pdfBuffer = await pdfResponse.arrayBuffer();
     console.log('PDF downloaded successfully, size:', pdfBuffer.byteLength, 'bytes');
 
+    // Check if PDF is too small (might be empty)
+    if (pdfBuffer.byteLength < 1000) {
+      console.warn('WARNING: PDF file is very small, might be empty or corrupted');
+    }
+
     // Extract filename from file_path
     const filename = file_path.split('/').pop() || 'document.pdf';
     console.log('Extracted filename:', filename);
@@ -109,6 +114,12 @@ Deno.serve(async (req: Request) => {
     // Create a File object from the buffer
     const pdfFile = new File([pdfBuffer], filename, { type: 'application/pdf' });
     console.log('Created File object:', pdfFile.name, pdfFile.size, 'bytes');
+
+    // Try to read first few bytes to check PDF header
+    const firstBytes = new Uint8Array(pdfBuffer.slice(0, 10));
+    const pdfHeader = String.fromCharCode(...firstBytes);
+    console.log('PDF header (first 10 bytes):', pdfHeader);
+    console.log('Is valid PDF header:', pdfHeader.startsWith('%PDF'));
 
     console.log('Uploading file to OpenAI...');
     const file = await openai.files.create({
@@ -152,15 +163,19 @@ Deno.serve(async (req: Request) => {
       role: 'user',
       content: `You are analyzing a pitch deck PDF for a startup company. Please carefully read through the entire document and extract the following information.
 
-IMPORTANT: This is a pitch deck, so it should contain company information. Look for:
-- Company name (usually on the first few slides)
-- Industry/sector (what business they're in)
-- Team members (founders, executives, key personnel)
-- Website URL (contact info, footer, or social media)
+CRITICAL: This is a pitch deck document that should contain company information. Please read the entire document thoroughly.
+
+Look for these specific elements:
+- Company name (usually on the first few slides, title slide, or header)
+- Industry/sector (what business they're in, market they serve)
+- Team members (founders, executives, key personnel with titles)
+- Website URL (contact info, footer, or social media links)
 - Valuation (funding rounds, investment amounts, company worth)
 - Revenue (current revenue, projections, financial metrics)
-- Business description (what the company does, problem they solve)
-- Funding terms (investment structure, amount seeking)
+- Business description (what the company does, problem they solve, target market)
+- Funding terms (investment structure, amount seeking, SAFE, equity)
+
+IMPORTANT: If the document appears to be empty, corrupted, or unreadable, please try to extract ANY text you can find, even if it's just a few words.
 
 Extract this information and return it as a JSON object with these exact fields:
 {
@@ -182,7 +197,7 @@ CRITICAL REQUIREMENTS:
 5. For team members: List as comma-separated string like "John Smith (CEO), Jane Doe (CTO)"
 6. For description: 2-3 sentences about what the company does
 
-If you cannot find ANY information in the document, return:
+If you cannot find ANY information in the document (even after trying to read it thoroughly), return:
 {
   "company_name": null,
   "industry": null, 
