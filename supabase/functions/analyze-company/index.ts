@@ -386,11 +386,47 @@ Deno.serve(async (req: Request) => {
 
     // Step 5: Create vector store
     console.log('Creating vector store...');
+    console.log('File IDs to upload:', fileIds);
+    console.log('Number of files:', fileIds.length);
+    
     const vectorStore = await openai.beta.vectorStores.create({
       name: config.vectorStoreName,
       file_ids: fileIds,
     });
     console.log('Vector store created:', vectorStore.id);
+    console.log('Vector store file count:', vectorStore.file_counts);
+    
+    // Wait for vector store to index the files
+    console.log('Waiting for vector store to index files...');
+    let vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStore.id);
+    let attempts = 0;
+    const maxAttempts = 120; // Wait up to 120 seconds for indexing
+    
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // Check every 2 seconds
+      vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStore.id);
+      attempts++;
+      
+      console.log(`Vector store status check ${attempts}:`, vectorStoreStatus.status);
+      console.log(`File counts:`, vectorStoreStatus.file_counts);
+      
+      // Check if all files are completed
+      if (vectorStoreStatus.file_counts && 
+          vectorStoreStatus.file_counts.completed > 0 &&
+          vectorStoreStatus.file_counts.completed === vectorStoreStatus.file_counts.total) {
+        console.log('All files indexed successfully!');
+        break;
+      }
+      
+      // Check if indexing failed
+      if (vectorStoreStatus.file_counts && vectorStoreStatus.file_counts.failed > 0) {
+        console.error('File indexing failed!');
+        break;
+      }
+    }
+    
+    console.log('Final vector store status:', vectorStoreStatus.status);
+    console.log('Final file counts:', vectorStoreStatus.file_counts);
 
     // Step 6: Create assistant with GPT-4 Turbo
     console.log('Creating assistant...');
@@ -413,9 +449,23 @@ Deno.serve(async (req: Request) => {
     console.log('Thread created:', thread.id);
 
     console.log('Adding message to thread with custom prompt...');
+    
+    // Modify prompt to explicitly instruct using file_search
+    const enhancedPrompt = `IMPORTANT: You have access to uploaded documents via the file_search tool. You MUST use file_search to read and analyze the company's pitch deck and other uploaded materials.
+
+${promptText}
+
+CRITICAL: Before writing your analysis, you MUST:
+1. Use the file_search tool to search through the uploaded documents
+2. Read the pitch deck and any other uploaded files
+3. Extract information from these documents
+4. Use this extracted information in your analysis
+
+Do NOT provide generic placeholder analysis. You must analyze the actual uploaded documents.`;
+    
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
-      content: promptText,
+      content: enhancedPrompt,
     });
 
     // Step 8: Run the assistant

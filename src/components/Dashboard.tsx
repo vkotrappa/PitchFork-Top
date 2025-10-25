@@ -34,6 +34,8 @@ interface Analysis {
 const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
   const navigate = useNavigate();
   const [filters, setFilters] = React.useState({
+    submitted: true,
+    inProgress: true,
     screened: true,
     analyzed: true,
     inDiligence: true,
@@ -266,7 +268,9 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
   // Filter companies based on selected filters
   // Status comes from analysis table (first analysis record for this investor)
   const filteredCompanies = companies.filter(company => {
-    const analysisStatus = company.analysis?.[0]?.status?.toLowerCase().replace('-', '').replace(' ', '') || 'screened';
+    const analysisStatus = company.analysis?.[0]?.status?.toLowerCase().replace('-', '').replace(' ', '') || 'submitted';
+    if (analysisStatus === 'submitted' && filters.submitted) return true;
+    if (analysisStatus === 'inprogress' && filters.inProgress) return true;
     if (analysisStatus === 'screened' && filters.screened) return true;
     if (analysisStatus === 'analyzed' && filters.analyzed) return true;
     if (analysisStatus === 'indiligence' && filters.inDiligence) return true;
@@ -457,6 +461,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
                 <h3 className="text-sm font-bold mb-3 text-navy-800 dark:text-silver-200">Status</h3>
                 <div className="flex flex-wrap gap-4">
                   {[
+                    { key: 'submitted', label: 'Submitted' },
+                    { key: 'inProgress', label: 'In-Progress' },
                     { key: 'screened', label: 'Screened' },
                     { key: 'analyzed', label: 'Analyzed' },
                     { key: 'inDiligence', label: 'In-Diligence' },

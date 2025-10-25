@@ -1959,14 +1959,16 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 {/* Overall Score */}
+                {analysis[0].overall_score && (
                 <div className="text-center">
                   <div className="text-3xl font-bold text-blue-600 mb-2">
-                    {analysis[0].overall_score ? `${analysis[0].overall_score}/10` : 'Pending'}
+                    {analysis[0].overall_score}/10
                   </div>
                   <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     Overall Score
                   </div>
                 </div>
+                )}
                 
                 {/* Recommendation */}
                 <div className="text-center">

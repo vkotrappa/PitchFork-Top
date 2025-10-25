@@ -155,6 +155,24 @@ serve(async (req) => {
 
     console.log(`Starting background analysis for ${analysisType} - Analysis ID: ${analysisId}`);
 
+    console.log('Starting background analysis with documents:', requestDocuments?.length || 0);
+    
+    // Fetch the prompt from the database
+    const config = {
+      team: { promptName: 'Team-Analysis' },
+      product: { promptName: 'Product-Analysis' },
+      market: { promptName: 'Market-Analysis' },
+      financial: { promptName: 'Financial-Analysis' }
+    }[analysisType];
+    
+    const { data: promptData } = await supabaseAdmin
+      .from('prompts')
+      .select('prompt_detail')
+      .eq('prompt_name', config.promptName)
+      .single();
+    
+    console.log('Found prompt:', promptData?.prompt_detail ? 'Yes' : 'No');
+    
     // Start the actual analysis in the background
     // We'll call the main analyze-company function asynchronously
     const analysisPromise = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-company`, {
@@ -168,6 +186,7 @@ serve(async (req) => {
         companyName,
         analysisId,
         analysisType,
+        prompt: promptData?.prompt_detail,
         documents: requestDocuments || []
       })
     });

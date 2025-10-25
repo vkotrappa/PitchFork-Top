@@ -161,7 +161,13 @@ Deno.serve(async (req: Request) => {
     console.log('Creating assistant...');
     const assistant = await openai.beta.assistants.create({
       name: 'PDF Analyzer',
-      instructions: 'You are an expert at analyzing pitch deck PDFs and extracting key information about startups and companies.',
+      instructions: `You are an expert at analyzing pitch deck PDFs and extracting key information about startups and companies. 
+
+When given a PDF file to analyze:
+1. You MUST use the file_search tool to access and read the document content
+2. Search through all sections of the pitch deck systematically
+3. Extract all available information about the company, team, financials, and business model
+4. Return structured JSON data with the extracted information`,
       model: 'gpt-4-turbo-preview',
       tools: [{ type: 'file_search' }],
     });
@@ -188,78 +194,85 @@ Deno.serve(async (req: Request) => {
     const thread = await openai.beta.threads.create();
     console.log('Thread created successfully:', thread.id);
 
-    console.log('Adding message to thread...');
+    console.log('Adding message to thread with file attachment...');
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
-      content: `You are analyzing a pitch deck PDF for a startup company. Please carefully read through the entire document and extract the following information.
+      content: `Analyze the attached PDF document and extract key company information. The document is a pitch deck for a startup company.
 
-CRITICAL: This is a pitch deck document that should contain company information. Please read the entire document thoroughly.
+CRITICAL: Read the attached PDF file and extract information from it.
 
-Look for these specific elements:
-- Company name (usually on the first few slides, title slide, or header)
-- Industry/sector (what business they're in, market they serve)
-- Team members (founders, executives, key personnel with titles)
-- Website URL (contact info, footer, or social media links)
-- Valuation (funding rounds, investment amounts, company worth)
-- Revenue (current revenue, projections, financial metrics)
-- Business description (what the company does, problem they solve, target market)
-- Funding terms (investment structure, amount seeking, SAFE, equity)
+STEP-BY-STEP INSTRUCTIONS:
+1. First, use file_search to read the entire document - you MUST do this to access the PDF content
+2. Look for the company name on title slides, headers, or throughout the deck
+3. Identify the industry/sector (e.g., healthcare, fintech, SaaS, etc.)
+4. Find team members - look for names with titles like CEO, CTO, CFO, Founder, etc.
+5. Locate the website URL - check footer, contact slide, or "Learn More" sections
+6. Look for valuation information - funding amounts, post-money valuations, cap tables
+7. Find revenue data - current revenue, ARR, MRR, projections
+8. Understand what the company does - problem statement, solution, target market
+9. Identify funding terms - investment type (SAFE, equity, convertible), terms, amount sought
 
-IMPORTANT: If the document appears to be empty, corrupted, or unreadable, please try to extract ANY text you can find, even if it's just a few words.
+RETURN FORMAT - JSON ONLY:
+You must return ONLY valid JSON. Start your response with { and end with }. No other text before or after.
 
-Extract this information and return it as a JSON object with these exact fields:
 {
-  "company_name": "string or null",
-  "industry": "string or null", 
-  "key_team_members": "string or null",
-  "url": "string or null",
-  "valuation": "string or null",
-  "revenue": "string or null",
-  "description": "string or null",
-  "funding_terms": "string or null"
+  "company_name": "The exact company name as it appears in the document, or null if not found",
+  "industry": "The specific industry or sector, or null if not found",
+  "key_team_members": "Names and titles separated by commas, like 'John Smith (CEO), Jane Doe (CTO)', or null if not found",
+  "url": "Full website URL with https:// protocol, or null if not found",
+  "valuation": "Valuation information as text, or null if not found",
+  "revenue": "Revenue information as text, or null if not found",
+  "description": "2-3 sentence description of what the company does, or null if not found",
+  "funding_terms": "Funding terms and structure, or null if not found"
 }
 
-CRITICAL REQUIREMENTS:
-1. Return ONLY the JSON object - no other text
-2. Use null for any field that cannot be determined
-3. For URL: Must be fully formed with https:// protocol
-4. For valuation: Look for explicit valuations or funding terms like "SAFE at $36M cap"
-5. For team members: List as comma-separated string like "John Smith (CEO), Jane Doe (CTO)"
-6. For description: 2-3 sentences about what the company does
+CRITICAL RULES:
+- You MUST use file_search to read the PDF content
+- If ANY information exists in the document, extract it and put it in the JSON
+- Use null only if you absolutely cannot find the information after reading the entire document
+- For description: Write a clear 2-3 sentence summary of the business
+- For team members: Include person's name and their title/role
+- For URL: Must include https:// protocol (e.g., https://example.com)
+- Do NOT include any explanatory text - ONLY return the JSON object
+- Make sure the JSON is valid and properly formatted
 
-If you cannot find ANY information in the document (even after trying to read it thoroughly), return:
-{
-  "company_name": null,
-  "industry": null, 
-  "key_team_members": null,
-  "url": null,
-  "valuation": null,
-  "revenue": null,
-  "description": null,
-  "funding_terms": null
-}
-
-Your response must start with { and end with }. No additional text before or after the JSON.`
+Now analyze the document and return the JSON object.`,
+      attachments: [
+        {
+          file_id: file.id,
+          tools: [{ type: 'file_search' }]
+        }
+      ]
     });
 
     console.log('Running assistant...');
     const run = await openai.beta.threads.runs.create(thread.id, {
       assistant_id: assistant.id,
+      additional_instructions: 'You must search the uploaded file to read the PDF content. Use file_search to analyze the document.',
     });
     console.log('Run created successfully:', run.id);
 
     let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
     console.log('Initial run status:', runStatus.status);
+    console.log('Full run object:', JSON.stringify(runStatus, null, 2));
 
     let attempts = 0;
-    const maxAttempts = 60; // 60 seconds timeout
+    const maxAttempts = 120; // 120 seconds timeout (PDFs may take longer)
 
-    while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
+    while (runStatus.status === 'queued' || runStatus.status === 'in_progress' || runStatus.status === 'requires_action') {
       attempts++;
-      console.log(`Run attempt ${attempts}/${maxAttempts}, status:`, runStatus.status);
+      
+      // Log status every 5 seconds or if status changes
+      if (attempts % 5 === 0 || runStatus.status === 'requires_action') {
+        console.log(`Run attempt ${attempts}/${maxAttempts} (${attempts} seconds), status:`, runStatus.status);
+        if (runStatus.status === 'requires_action') {
+          console.log('Run status details:', JSON.stringify(runStatus, null, 2));
+        }
+      }
       
       if (attempts >= maxAttempts) {
-        throw new Error('Run timeout after 60 seconds');
+        console.error('Run timeout - last status:', runStatus.status);
+        throw new Error('Run timeout after 120 seconds. The PDF may be too large or complex.');
       }
       
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -267,6 +280,7 @@ Your response must start with { and end with }. No additional text before or aft
     }
 
     console.log('Final run status:', runStatus.status);
+    console.log('Total processing time:', attempts, 'seconds');
 
     if (runStatus.status !== 'completed') {
       console.error('Run failed. Full status object:', JSON.stringify(runStatus, null, 2));
@@ -304,43 +318,72 @@ Your response must start with { and end with }. No additional text before or aft
     let extractedInfo;
     try {
       console.log('Attempting to parse JSON from response...');
+      console.log('Response length:', responseText.length);
       
-      // Try to find JSON in the response
+      // Try to find JSON in the response - look for content between {}
       let jsonString = responseText.trim();
       
-      // Remove any text before the first {
-      const firstBrace = jsonString.indexOf('{');
-      if (firstBrace > 0) {
-        jsonString = jsonString.substring(firstBrace);
-      }
-      
-      // Remove any text after the last }
-      const lastBrace = jsonString.lastIndexOf('}');
-      if (lastBrace > 0 && lastBrace < jsonString.length - 1) {
-        jsonString = jsonString.substring(0, lastBrace + 1);
-      }
-      
-      console.log('Cleaned JSON string:', jsonString);
-      
-      extractedInfo = JSON.parse(jsonString);
-      
-      // Clean up any field values that might have colons or other formatting issues
-      for (const key in extractedInfo) {
-        if (extractedInfo[key] && typeof extractedInfo[key] === 'string') {
-          extractedInfo[key] = extractedInfo[key]
-            .replace(/^[:;|•\-\s]+/, '') // Remove leading colons, semicolons, pipes, bullets, dashes, spaces
-            .replace(/[:;|•\-\s]+$/, '') // Remove trailing colons, semicolons, pipes, bullets, dashes, spaces
-            .trim();
+      // Method 1: Try to find JSON block surrounded by code fences
+      const codeBlockMatch = jsonString.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        jsonString = codeBlockMatch[1].trim();
+        console.log('Found JSON in code block');
+      } else {
+        // Method 2: Find JSON between first { and last }
+        const firstBrace = jsonString.indexOf('{');
+        const lastBrace = jsonString.lastIndexOf('}');
+        
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+          jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+          console.log('Found JSON by braces');
         }
       }
       
-      console.log('Successfully parsed JSON:', extractedInfo);
+      console.log('Extracted JSON string length:', jsonString.length);
+      console.log('JSON preview (first 200 chars):', jsonString.substring(0, 200));
+      
+      // Try to parse the JSON
+      extractedInfo = JSON.parse(jsonString);
+      
+      // Clean up any field values that might have formatting issues
+      for (const key in extractedInfo) {
+        if (extractedInfo[key] && typeof extractedInfo[key] === 'string') {
+          // Trim and clean up the value
+          let cleanedValue = extractedInfo[key]
+            .replace(/^[:;|•\-\s]+/, '') // Remove leading colons, semicolons, pipes, bullets, dashes, spaces
+            .replace(/[:;|•\-\s]+$/, '') // Remove trailing colons, semicolons, pipes, bullets, dashes, spaces
+            .trim();
+          
+          // Remove quotes if the entire value is quoted
+          if ((cleanedValue.startsWith('"') && cleanedValue.endsWith('"')) ||
+              (cleanedValue.startsWith("'") && cleanedValue.endsWith("'"))) {
+            cleanedValue = cleanedValue.slice(1, -1);
+          }
+          
+          extractedInfo[key] = cleanedValue || null;
+        } else if (extractedInfo[key] === 'null' || extractedInfo[key] === 'undefined') {
+          extractedInfo[key] = null;
+        }
+      }
+      
+      // Validate that we have at least some data
+      const nonNullFields = Object.values(extractedInfo).filter(v => v !== null && v !== undefined && v !== '');
+      console.log(`Successfully parsed JSON with ${nonNullFields.length} non-null fields`);
+      console.log('Extracted info:', extractedInfo);
+      
+      // If all fields are null, this might be a problem
+      if (nonNullFields.length === 0) {
+        console.warn('WARNING: All extracted fields are null - document may be empty or unreadable');
+      }
       
     } catch (parseError) {
       console.error('Failed to parse JSON:', parseError);
-      console.error('Raw response text:', responseText);
+      console.error('Parse error details:', parseError.message);
+      console.error('Raw response text (first 500 chars):', responseText.substring(0, 500));
+      console.error('Raw response text (last 500 chars):', responseText.substring(Math.max(0, responseText.length - 500)));
       
       // Try to extract individual fields using regex as fallback
+      console.log('Attempting fallback regex extraction...');
       const fallbackExtraction = {
         company_name: extractField(responseText, /company[_\s]*name/i) || null,
         industry: extractField(responseText, /industry/i) || null,
@@ -350,12 +393,13 @@ Your response must start with { and end with }. No additional text before or aft
         revenue: extractField(responseText, /revenue/i) || null,
         description: extractField(responseText, /description/i) || null,
         funding_terms: extractField(responseText, /funding[_\s]*terms/i) || null,
-        raw_response: responseText,
-        parse_error: 'Used fallback extraction method'
+        raw_response: responseText.substring(0, 1000), // Store first 1000 chars
+        parse_error: 'Used fallback extraction method',
+        parse_error_message: parseError instanceof Error ? parseError.message : 'Unknown error'
       };
       
       extractedInfo = fallbackExtraction;
-      console.log('Using fallback extraction:', extractedInfo);
+      console.log('Using fallback extraction:', fallbackExtraction);
     }
 
     console.log('Storing extracted data in database...');
