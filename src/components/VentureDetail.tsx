@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, MessageCircle, Send, Download, BarChart3, Users, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, MessageCircle, Send, Download, BarChart3, Users, Trash2, Eye, X } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
 
 interface VentureDetailProps {
@@ -88,6 +88,12 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isCreatingDetailReport, setIsCreatingDetailReport] = useState(false);
   const [isCreatingDiligenceQuestions, setIsCreatingDiligenceQuestions] = useState(false);
   const [isCreatingFounderReport, setIsCreatingFounderReport] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfFileName, setPdfFileName] = useState<string>('');
+  const [modalSize, setModalSize] = useState({ width: 0, height: 0 });
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
   // Check authentication and load company data
   useEffect(() => {
@@ -540,6 +546,94 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       });
     }
   };
+
+  const handleViewPdf = async (report: AnalysisReport) => {
+    try {
+      setMessageStatus({ type: 'success', text: 'Loading PDF...' });
+      
+      // Call edge function to create signed URL (bypasses RLS restrictions)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
+      const functionUrl = `${supabaseUrl}/functions/v1/get-report-download-url`;
+      const session = await supabase.auth.getSession();
+      
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.data.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          file_path: report.file_path,
+          expires_in: 3600 // 1 hour for viewing
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        setMessageStatus({ 
+          type: 'error', 
+          text: `Failed to load PDF: ${errorData.error || response.statusText}` 
+        });
+        return;
+      }
+
+      const signedUrlResult = await response.json();
+      
+      if (!signedUrlResult?.signed_url) {
+        setMessageStatus({ type: 'error', text: 'Failed to generate view link' });
+        return;
+      }
+
+      setPdfUrl(signedUrlResult.signed_url);
+      setPdfFileName(report.file_name);
+      setShowPdfModal(true);
+      setMessageStatus(null);
+      
+      // Reset modal size when opening
+      setModalSize({ width: 0, height: 0 });
+    } catch (error) {
+      console.error('Error loading PDF:', error);
+      setMessageStatus({ type: 'error', text: 'Failed to load PDF' });
+    }
+  };
+
+  // Handle resize start
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !showPdfModal) return;
+      
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      const maxWidth = windowWidth - 20;
+      const maxHeight = windowHeight - 20;
+      
+      // Calculate new size based on mouse delta from start position
+      const deltaX = e.clientX - resizeStart.x;
+      const deltaY = e.clientY - resizeStart.y;
+      
+      let newWidth = resizeStart.width + deltaX;
+      let newHeight = resizeStart.height + deltaY;
+      
+      newWidth = Math.max(800, Math.min(newWidth, maxWidth));
+      newHeight = Math.max(600, Math.min(newHeight, maxHeight));
+      
+      setModalSize({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, resizeStart, showPdfModal]);
 
   const handleDownloadDocument = async (doc: Document) => {
     try {
@@ -2084,6 +2178,13 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                       </div>
                       <div className="flex gap-2">
                         <button
+                          onClick={() => handleViewPdf(report)}
+                          className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors flex-shrink-0"
+                          title="View PDF"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDownloadReport(report)}
                           className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded transition-colors flex-shrink-0"
                           title="Download report"
@@ -2339,6 +2440,75 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           </div>
         </div>
       </div>
+
+      {/* PDF Viewer Modal */}
+      {showPdfModal && pdfUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+          <div 
+            className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-xl overflow-hidden flex flex-col`}
+            style={{ 
+              width: modalSize.width > 0 ? `${modalSize.width}px` : '95vw',
+              height: modalSize.height > 0 ? `${modalSize.height}px` : '92vh',
+              minWidth: '800px',
+              minHeight: '600px',
+              maxWidth: '98vw',
+              maxHeight: '98vh'
+            }}
+          >
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {pdfFileName}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowPdfModal(false);
+                  setPdfUrl(null);
+                  setPdfFileName('');
+                }}
+                className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* PDF Viewer */}
+            <div className="flex-1 overflow-hidden relative">
+              <iframe
+                src={`${pdfUrl}#toolbar=1&navpanes=1`}
+                className="w-full h-full border-0"
+                title="PDF Viewer"
+              />
+              {/* Resize Handle */}
+              <div 
+                className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize select-none"
+                style={{
+                  background: 'linear-gradient(-135deg, transparent 35%, #666 35%, #666 45%, transparent 45%, transparent 55%, #666 55%, #666 65%, transparent 65%)',
+                  opacity: '0.5',
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const modalDiv = e.currentTarget.closest('div[class*="bg-gray"]');
+                  if (modalDiv) {
+                    const rect = modalDiv.getBoundingClientRect();
+                    setResizeStart({
+                      x: e.clientX,
+                      y: e.clientY,
+                      width: rect.width,
+                      height: rect.height
+                    });
+                  }
+                  setIsResizing(true);
+                }}
+                onDragStart={(e) => e.preventDefault()}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className={`py-8 ${isDark ? 'bg-gray-800' : 'bg-gray-900'} text-white mt-12`}>
