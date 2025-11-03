@@ -1,12 +1,265 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
 import { OpenAI } from 'npm:openai@4.73.0';
-import { jsPDF } from 'npm:jspdf@2.5.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
+
+// Helper function to convert markdown to HTML
+function markdownToHtml(markdown: string): string {
+  let html = markdown;
+  
+  // Headers (must come before paragraphs)
+  html = html.replace(/^### (.+?)$/gim, '<h3>$1</h3>');
+  html = html.replace(/^## (.+?)$/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.+?)$/gim, '<h1>$1</h1>');
+  
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // Numbered lists - wrap consecutive <li> items in <ol>
+  const lines = html.split('\n');
+  let inOrderedList = false;
+  let result: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
+    
+    if (orderedMatch) {
+      if (!inOrderedList) {
+        result.push('<ol>');
+        inOrderedList = true;
+      }
+      result.push(`<li>${orderedMatch[1]}</li>`);
+    } else {
+      if (inOrderedList) {
+        result.push('</ol>');
+        inOrderedList = false;
+      }
+      const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+      if (bulletMatch) {
+        result.push(`<ul><li>${bulletMatch[1]}</li></ul>`);
+      } else {
+        result.push(line);
+      }
+    }
+  }
+  
+  if (inOrderedList) {
+    result.push('</ol>');
+  }
+  
+  html = result.join('\n');
+  
+  // Paragraphs (double newlines)
+  html = html.split('\n\n').map(para => {
+    para = para.trim();
+    if (para && !para.match(/^<[h|o|u]/) && !para.startsWith('<li>')) {
+      return '<p>' + para.replace(/\n/g, '<br>') + '</p>';
+    }
+    return para;
+  }).join('\n');
+  
+  return html;
+}
+
+// HTML template generator
+function generateHtmlReport(
+  reportTitle: string,
+  companyName: string,
+  analysisResult: string,
+  dateStr: string,
+  timeStr: string,
+  isCustomPrompt: boolean = false,
+  investorName: string | null = null
+): string {
+  const htmlContent = markdownToHtml(analysisResult);
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${reportTitle}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    @page {
+      size: letter;
+      margin-top: 0.75in;
+      margin-right: 0.75in;
+      margin-bottom: 1in;
+      margin-left: 0.75in;
+    }
+    
+    body {
+      font-family: 'Arial', 'Helvetica', sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1f2937;
+      background: white;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .header {
+      border-bottom: 2px solid #d1d5db;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+      position: relative;
+    }
+    
+    .title {
+      font-size: 24pt;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+    
+    .company-name {
+      font-size: 16pt;
+      color: #4b5563;
+      margin-bottom: 8px;
+    }
+    
+    .metadata {
+      font-size: 10pt;
+      color: #6b7280;
+      margin-top: 10px;
+    }
+    
+    .confidential {
+      position: absolute;
+      top: 0;
+      right: 0;
+      color: #dc2626;
+      font-weight: bold;
+      font-size: 10pt;
+    }
+    
+    .content {
+      margin-top: 30px;
+    }
+    
+    .content h1 {
+      font-size: 18pt;
+      font-weight: bold;
+      color: #1f2937;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      page-break-after: avoid;
+    }
+    
+    .content h2 {
+      font-size: 16pt;
+      font-weight: bold;
+      color: #1f2937;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+    
+    .content h3 {
+      font-size: 14pt;
+      font-weight: bold;
+      color: #1f2937;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
+    }
+    
+    .content p {
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+    
+    .content ul, .content ol {
+      margin-left: 24px;
+      margin-bottom: 12px;
+    }
+    
+    .content li {
+      margin-bottom: 6px;
+    }
+    
+    .content strong {
+      font-weight: bold;
+      color: #1f2937;
+    }
+    
+    .content em {
+      font-style: italic;
+    }
+    
+    .content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      page-break-inside: avoid;
+    }
+    
+    .content table th,
+    .content table td {
+      border: 1px solid #d1d5db;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    
+    .content table th {
+      background-color: #f3f4f6;
+      font-weight: bold;
+      color: #1f2937;
+    }
+    
+    .content table tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+    
+    .page-break {
+      page-break-before: always;
+    }
+    
+    @media print {
+      body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="confidential">CONFIDENTIAL</div>
+    <div class="title">${reportTitle}</div>
+    ${isCustomPrompt && investorName ? `
+    <div class="metadata" style="color: #4b5563; font-weight: normal; margin-top: 8px; margin-bottom: 4px; font-size: 11pt;">
+      Custom Analysis based on criteria by : ${investorName}
+    </div>
+    ` : ''}
+    <div class="company-name">Company: ${companyName}</div>
+    <div class="metadata">
+      Generated: ${dateStr} at ${timeStr}<br>
+      Model: GPT-4 Turbo
+    </div>
+  </div>
+  
+  <div class="content">
+    ${htmlContent}
+  </div>
+  
+</body>
+</html>`;
+}
 
 interface RequestBody {
   companyId: string;
@@ -106,9 +359,27 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const htmlToPdfApiKey = Deno.env.get('HTML_TO_PDF_API_KEY');
+    const htmlToPdfEndpoint = Deno.env.get('HTML_TO_PDF_ENDPOINT') || 'https://api.html2pdf.app/v1/generate';
 
     if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is not set');
+      return new Response(
+        JSON.stringify({ error: 'OPENAI_API_KEY environment variable is not set' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    if (!htmlToPdfApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'HTML_TO_PDF_API_KEY environment variable is not set' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -543,48 +814,11 @@ Do NOT provide generic placeholder analysis. You must analyze the actual uploade
     const analysisResult = lastMessage.content[0].text.value;
     console.log('Analysis completed, length:', analysisResult.length);
 
-    // Step 10: Generate PDF Report
-    console.log('Generating PDF report...');
+    // Step 10: Generate PDF Report using HTML-to-PDF
+    console.log('Generating HTML/CSS PDF report via external API...');
     console.log('isCustomPrompt:', isCustomPrompt);
     console.log('investorName:', investorName);
-    const pdf = new jsPDF();
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 20;
-    const maxWidth = pageWidth - (margin * 2);
-
-    // Add header with branding
-    pdf.setFontSize(24);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(31, 41, 55); // Dark gray
-    pdf.text(config.reportTitle, margin, margin);
-
-    // Custom prompt notice if applicable - right under the title
-    let companyNameY = margin + 10;
     
-    console.log('Checking custom prompt condition:', isCustomPrompt && investorName);
-    if (isCustomPrompt && investorName) {
-      console.log('Adding custom prompt notice to PDF');
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(75, 85, 99); // Medium gray
-      pdf.text(
-        `Custom Analysis based on criteria by : ${investorName}`,
-        margin,
-        margin + 10
-      );
-      companyNameY = margin + 18;
-    }
-
-    // Add company name
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(75, 85, 99); // Medium gray
-    pdf.text(`Company: ${companyName}`, margin, companyNameY);
-
-    // Add date and metadata
-    pdf.setFontSize(10);
-    pdf.setTextColor(107, 114, 128); // Light gray
     const dateStr = new Date().toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 
@@ -594,90 +828,160 @@ Do NOT provide generic placeholder analysis. You must analyze the actual uploade
       hour: '2-digit', 
       minute: '2-digit' 
     });
-    // Add date and metadata - positioned after company name
-    const metadataY = companyNameY + 7;
-    pdf.text(`Generated: ${dateStr} at ${timeStr}`, margin, metadataY);
-    pdf.text(`Model: GPT-4 Turbo`, margin, metadataY + 5);
-
-    // Add separator line
-    const separatorY = metadataY + 12;
-    pdf.setDrawColor(209, 213, 219); // Light gray border
-    pdf.setLineWidth(0.5);
-    pdf.line(margin, separatorY, pageWidth - margin, separatorY);
-
-    // Add "CONFIDENTIAL" watermark
-    pdf.setFontSize(10);
-    pdf.setTextColor(220, 38, 38); // Red
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('CONFIDENTIAL', pageWidth - margin - 30, metadataY + 5);
-
-    // Add analysis content
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(31, 41, 55); // Dark gray for body text
     
-    // Adjust starting position for content
-    const contentStartY = separatorY + 5;
-    let yPosition = contentStartY;
-    const lineHeight = 6;
+    const htmlContent = generateHtmlReport(
+      config.reportTitle,
+      companyName,
+      analysisResult,
+      dateStr,
+      timeStr,
+      isCustomPrompt,
+      investorName
+    );
+
+    // Call external HTML->PDF API
+    console.log('Calling HTML->PDF API:', htmlToPdfEndpoint);
+    console.log('HTML content length:', htmlContent.length);
     
-    // Split text into lines
-    const lines = pdf.splitTextToSize(analysisResult, maxWidth);
-    
-    for (const line of lines) {
-      // Check if we need a new page
-      if (yPosition > pageHeight - margin - 15) {
-        pdf.addPage();
-        yPosition = margin;
-      }
+    let convertResponse: Response;
+    try {
+      // Try html2pdf.app format first (Bearer token)
+      convertResponse = await fetch(htmlToPdfEndpoint, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${htmlToPdfApiKey}`
+        },
+        body: JSON.stringify({
+          html: htmlContent,
+          format: 'Letter',
+          margin: {
+            top: '0.75in',
+            right: '0.75in',
+            bottom: '1in',
+            left: '0.75in'
+          },
+          landscape: false,
+          printBackground: true
+        })
+      });
       
-      // Handle bold sections (assuming markdown-style **text**)
-      if (line.includes('**')) {
-        const parts = line.split('**');
-        let xPos = margin;
-        parts.forEach((part, index) => {
-          if (index % 2 === 1) {
-            pdf.setFont('helvetica', 'bold');
-          } else {
-            pdf.setFont('helvetica', 'normal');
-          }
-          pdf.text(part, xPos, yPosition);
-          xPos += pdf.getTextWidth(part);
+      // If that fails, try with apiKey in body
+      if (!convertResponse.ok && convertResponse.status === 401) {
+        console.log('Bearer auth failed, trying apiKey in body...');
+        convertResponse = await fetch(htmlToPdfEndpoint, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            apiKey: htmlToPdfApiKey,
+            html: htmlContent,
+            format: 'Letter',
+            margin: {
+              top: '0.75in',
+              right: '0.75in',
+              bottom: '1in',
+              left: '0.75in'
+            },
+            landscape: false,
+            printBackground: true
+          })
         });
-      } else {
-        pdf.text(line, margin, yPosition);
       }
-      
-      yPosition += lineHeight;
-    }
-
-    // Add footer on all pages
-    const totalPages = pdf.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(156, 163, 175); // Gray
-      
-      // Page number
-      pdf.text(
-        `Page ${i} of ${totalPages}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      );
-      
-      // Confidential notice
-      pdf.text(
-        'Confidential - For Investment Decision Making Only',
-        margin,
-        pageHeight - 10
+    } catch (fetchError) {
+      console.error('Fetch error calling HTML->PDF API:', fetchError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to call HTML->PDF conversion service',
+          details: fetchError instanceof Error ? fetchError.message : String(fetchError)
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Convert PDF to buffer
-    const pdfArrayBuffer = pdf.output('arraybuffer');
-    const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+    if (!convertResponse.ok) {
+      let errorDetails: string | undefined;
+      try {
+        const err = await convertResponse.text();
+        errorDetails = err;
+        console.error('HTML->PDF API error response:', err);
+      } catch {}
+      console.error('HTML->PDF conversion failed:', {
+        status: convertResponse.status,
+        statusText: convertResponse.statusText,
+        details: errorDetails
+      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'HTML->PDF conversion failed', 
+          status: convertResponse.status,
+          statusText: convertResponse.statusText,
+          details: errorDetails 
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // html2pdf.app may return PDF directly or JSON with URL
+    let pdfBuffer: ArrayBuffer;
+    const contentType = convertResponse.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/pdf')) {
+      // PDF returned directly
+      console.log('PDF returned directly from API');
+      pdfBuffer = await convertResponse.arrayBuffer();
+    } else {
+      // JSON response with URL
+      try {
+        const result = await convertResponse.json();
+        console.log('API response:', JSON.stringify(result));
+        
+        if (result.url) {
+          // Download PDF from URL
+          console.log('Downloading PDF from URL:', result.url);
+          const pdfFetch = await fetch(result.url);
+          if (!pdfFetch.ok) {
+            return new Response(
+              JSON.stringify({ 
+                error: 'Failed to download converted PDF', 
+                status: pdfFetch.status,
+                url: result.url
+              }),
+              { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          pdfBuffer = await pdfFetch.arrayBuffer();
+        } else if (result.pdf) {
+          // PDF as base64
+          console.log('PDF returned as base64');
+          const base64Data = result.pdf.replace(/^data:application\/pdf;base64,/, '');
+          pdfBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
+        } else {
+          console.error('Unexpected API response format:', result);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Conversion API returned unexpected format',
+              response: result
+            }),
+            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (e) {
+        console.error('Error processing API response:', e);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Unable to process conversion API response',
+            details: e instanceof Error ? e.message : String(e)
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    console.log('PDF generated, size:', pdfBuffer.byteLength);
+
+    // Convert to blob for upload
+    const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
 
     // Step 11: Upload PDF to Supabase Storage
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);

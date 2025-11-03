@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, MessageCircle, Send, Download, BarChart3, Users, Trash2, Eye, X } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, MessageCircle, Send, Download, BarChart3, Users, Trash2, Eye, X, Loader2 } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
 
 interface VentureDetailProps {
@@ -738,7 +738,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
       // Map button labels to database status values
       let dbStatus = newStatus;
-      if (newStatus === 'Move to Diligence') {
+      if (newStatus === 'To Diligence') {
         dbStatus = 'In-Diligence';
       } else if (newStatus === 'Reject') {
         dbStatus = 'Rejected';
@@ -759,7 +759,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       let historyEntry = '';
       if (newStatus === 'Reject') {
         historyEntry = `${currentDate}: Rejected`;
-      } else if (newStatus === 'Move to Diligence') {
+      } else if (newStatus === 'To Diligence') {
         historyEntry = `${currentDate}: Diligence`;
       }
 
@@ -822,6 +822,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       const currentUser = await getCurrentUser();
       if (!currentUser) {
         setMessageStatus({ type: 'error', text: `You must be logged in to perform ${config.label.toLowerCase()} analysis` });
+        config.setLoading(false);
         return;
       }
 
@@ -842,6 +843,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         if (analysisError) {
           console.error('Error creating analysis record:', analysisError);
           setMessageStatus({ type: 'error', text: 'Failed to create analysis record' });
+          config.setLoading(false);
           return;
         }
         analysisId = newAnalysis.id;
@@ -857,12 +859,14 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       if (promptError) {
         console.error(`Error fetching ${config.promptName} prompt:`, promptError);
         setMessageStatus({ type: 'error', text: `${config.promptName} prompt not found in database. Please add it to the prompts table.` });
+        config.setLoading(false);
         return;
       }
 
       if (!promptData || !promptData.prompt_detail) {
         console.error('Prompt data is empty');
         setMessageStatus({ type: 'error', text: `${config.promptName} prompt is empty` });
+        config.setLoading(false);
         return;
       }
 
@@ -877,11 +881,13 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       if (documentsError) {
         console.error('Error fetching company documents:', documentsError);
         setMessageStatus({ type: 'error', text: 'Failed to fetch company documents' });
+        config.setLoading(false);
         return;
       }
 
       if (!documentsData || documentsData.length === 0) {
         setMessageStatus({ type: 'error', text: `No documents found for ${config.label.toLowerCase()} analysis` });
+        config.setLoading(false);
         return;
       }
 
@@ -947,6 +953,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           errorMessage = `Failed to start ${config.label.toLowerCase()} analysis (${response.status})`;
         }
         setMessageStatus({ type: 'error', text: errorMessage });
+        config.setLoading(false);
         return;
       }
 
@@ -1006,10 +1013,48 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         analysisSubscription.unsubscribe();
       }, 5 * 60 * 1000);
 
+      // Poll for report completion every 5 seconds
+      const expectedReportType = `${analysisType}-analysis`;
+      const pollInterval = setInterval(async () => {
+        // Reload analysis reports to check for new reports
+        const { data: reportsData } = await supabase
+          .from('analysis_reports')
+          .select('report_type, analysis_id')
+          .eq('analysis_id', analysisId);
+        
+        if (reportsData) {
+          const hasReport = reportsData.some(
+            report => report.report_type.toLowerCase() === expectedReportType
+          );
+          
+          if (hasReport) {
+            console.log(`${config.label} analysis report found!`);
+            clearInterval(pollInterval);
+            config.setLoading(false);
+            setMessageStatus({ type: 'success', text: `${config.label} analysis completed successfully!` });
+            
+            // Reload analysis reports to update UI
+            await loadAnalysisReports(company.id);
+            
+            // Auto-hide success message after 5 seconds
+            setTimeout(() => {
+              setMessageStatus(null);
+            }, 5000);
+          }
+        }
+      }, 5000); // Poll every 5 seconds
+
+      // Stop polling after 10 minutes (timeout)
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (config.setLoading) {
+          config.setLoading(false);
+        }
+      }, 10 * 60 * 1000);
+
     } catch (error) {
       console.error(`Error performing ${config.label.toLowerCase()} analysis:`, error);
       setMessageStatus({ type: 'error', text: `An unexpected error occurred during ${config.label.toLowerCase()} analysis` });
-    } finally {
       config.setLoading(false);
     }
   };
@@ -1898,15 +1943,15 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                 const currentAnalysisStatus = analysis.length > 0 ? analysis[0].status : 'Submitted';
                 
                 // Row 1: Analysis buttons (in specific order)
-                const row1Buttons = ['Analyze-Product', 'Analyze-Market', 'Analyze-Team', 'Analyze-Financials', 'Team-Analysis-Test'];
+                const row1Buttons = ['Analyze-Product', 'Analyze-Market', 'Analyze-Team', 'Analyze-Financials'];
                 
                 // Row 2: Create buttons
                 const row2Buttons = ['Create-ScoreCard', 'Create-DetailReport', 'Create-DiligenceQuestions', 'Create-FounderReport'];
                 
-                // Row 3: Status buttons (based on current status)
+                // Row 3: Status buttons (based on current analysis status)
                 let row3Buttons: string[] = [];
                 if (currentAnalysisStatus === 'Analyzed' || currentAnalysisStatus === 'In-Diligence') {
-                  row3Buttons = ['Move to Diligence', 'Reject'];
+                  row3Buttons = ['To Diligence', 'Reject'];
                 } else {
                   row3Buttons = ['Reject'];
                 }
@@ -1919,11 +1964,30 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                   'Analyze-Financials': 'Financial-Analysis',
                 };
                 
+                // Helper function to get display text for buttons
+                const getButtonDisplayText = (status: string, hasCustomPrompt: boolean): string => {
+                  let displayText = '';
+                  
+                  if (status.startsWith('Analyze-')) {
+                    displayText = status.replace('Analyze-', '');
+                  } else if (status.startsWith('Create-')) {
+                    displayText = status.replace('Create-', '');
+                    // Format the display text nicely - add space before capital letters
+                    displayText = displayText.replace(/([a-z])([A-Z])/g, '$1 $2');
+                  } else if (status === 'Team-Analysis-Test') {
+                    displayText = 'Test';
+                  } else {
+                    displayText = status.replace(/-/g, ' ');
+                  }
+                  
+                  return hasCustomPrompt ? `* ${displayText}` : displayText;
+                };
+                
                 const renderButton = (status: string) => {
                   const isActive = 
-                    (status === 'Move to Diligence' && currentAnalysisStatus === 'In-Diligence') ||
+                    (status === 'To Diligence' && currentAnalysisStatus === 'In-Diligence') ||
                     (status === 'Invested' && currentAnalysisStatus === 'Invested') ||
-                    (status !== 'Move to Diligence' && status !== 'Invested' && currentAnalysisStatus === status);
+                    (status !== 'To Diligence' && status !== 'Invested' && currentAnalysisStatus === status);
                   
                   // Determine button style based on type
                   const isAnalysisButton = status.startsWith('Analyze-');
@@ -1945,6 +2009,20 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     (status === 'Analyze-Market' && existingReportTypes.includes('market-analysis')) ||
                     (status === 'Analyze-Financials' && existingReportTypes.includes('financial-analysis'));
                   
+                  // Check if Create button report exists
+                  const isCreateReportComplete =
+                    (status === 'Create-ScoreCard' && existingReportTypes.includes('scorecard')) ||
+                    (status === 'Create-DetailReport' && existingReportTypes.includes('detail-report')) ||
+                    (status === 'Create-DiligenceQuestions' && existingReportTypes.includes('diligence-questions')) ||
+                    (status === 'Create-FounderReport' && existingReportTypes.includes('founder-report'));
+                  
+                  // Check if Create button is currently running
+                  const isCreateButtonRunning =
+                    (status === 'Create-ScoreCard' && isCreatingScoreCard) ||
+                    (status === 'Create-DetailReport' && isCreatingDetailReport) ||
+                    (status === 'Create-DiligenceQuestions' && isCreatingDiligenceQuestions) ||
+                    (status === 'Create-FounderReport' && isCreatingFounderReport);
+                  
                   const isDisabled = isUpdating || 
                     (status === 'Analyze-Team' && isAnalyzingTeam) ||
                     (status === 'Analyze-Product' && isAnalyzingProduct) ||
@@ -1955,7 +2033,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     (status === 'Create-DetailReport' && (isCreatingDetailReport || !allAnalysisReportsExist)) ||
                     (status === 'Create-DiligenceQuestions' && (isCreatingDiligenceQuestions || !allAnalysisReportsExist)) ||
                     (status === 'Create-FounderReport' && (isCreatingFounderReport || !allAnalysisReportsExist)) ||
-                    (status === 'Move to Diligence' && currentAnalysisStatus === 'In-Diligence');
+                    (status === 'To Diligence' && currentAnalysisStatus === 'In-Diligence');
                   
                   // Generate tooltip for Create buttons when disabled due to missing reports
                   // Also add tooltip for completed analysis buttons
@@ -1998,31 +2076,58 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                           ? 'bg-blue-600 text-white'
                           : isTestButton
                             ? 'bg-orange-600 text-white hover:bg-orange-700'
-                            : isAnalysisButton && isAnalysisComplete
-                              ? isDark
-                                ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                                : 'bg-gray-400 text-white hover:bg-gray-500'
+                              : isAnalysisButton && (
+                                  (status === 'Analyze-Team' && isAnalyzingTeam) ||
+                                  (status === 'Analyze-Product' && isAnalyzingProduct) ||
+                                  (status === 'Analyze-Market' && isAnalyzingMarket) ||
+                                  (status === 'Analyze-Financials' && isAnalyzingFinancials)
+                                )
+                                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                              : isAnalysisButton && isAnalysisComplete
+                                ? 'bg-green-600 text-white hover:bg-green-700'
                               : isAnalysisButton
-                                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : isCreateButton && isCreateButtonRunning
+                                  ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                : isCreateButton && isCreateReportComplete
+                                  ? 'bg-green-600 text-white hover:bg-green-700'
                                 : isCreateButton
-                                ? (status === 'Create-ScoreCard' && existingReportTypes.includes('scorecard')) ||
-                                  (status === 'Create-DetailReport' && existingReportTypes.includes('detail-report')) ||
-                                  (status === 'Create-DiligenceQuestions' && existingReportTypes.includes('diligence-questions')) ||
-                                  (status === 'Create-FounderReport' && existingReportTypes.includes('founder-report'))
-                                  ? isDark
-                                    ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                                    : 'bg-gray-400 text-white hover:bg-gray-500'
-                                  : 'bg-green-600 text-white hover:bg-green-700'
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
                                 : isDark
                                   ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                     >
-                      {isDisabled && status.startsWith('Analyze-') ? 'Analyzing...' : 
-                       isDisabled && status.startsWith('Create-') ? 'Creating...' :
-                       isDisabled && status === 'Team-Analysis-Test' ? 'Testing...' :
-                       isUpdating ? 'Updating...' : 
-                       hasCustomPrompt ? `* ${status.replace(/-/g, ' ')}` : status.replace(/-/g, ' ')}
+                      {(status.startsWith('Analyze-') && (
+                          (status === 'Analyze-Team' && isAnalyzingTeam) ||
+                          (status === 'Analyze-Product' && isAnalyzingProduct) ||
+                          (status === 'Analyze-Market' && isAnalyzingMarket) ||
+                          (status === 'Analyze-Financials' && isAnalyzingFinancials)
+                        )) ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Analyzing...
+                          </span>
+                        ) :
+                       (status.startsWith('Create-') && isCreateButtonRunning) ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Creating...
+                          </span>
+                        ) :
+                       status === 'Team-Analysis-Test' && isTestingTeamAnalysis ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Testing...
+                          </span>
+                        ) :
+                       isUpdating ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Updating...
+                          </span>
+                        ) : 
+                       getButtonDisplayText(status, hasCustomPrompt)}
                     </button>
                   );
                 };
@@ -2030,12 +2135,14 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                 return (
                   <>
                     {/* Row 1: Analysis Buttons */}
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'}`}>Analyze:</span>
                       {row1Buttons.map(renderButton)}
                     </div>
                     
                     {/* Row 2: Create Buttons */}
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'}`}>Create:</span>
                       {row2Buttons.map(renderButton)}
                     </div>
                     
@@ -2047,7 +2154,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     )}
                     
                     {/* Row 3: Status Buttons */}
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'}`}>Action:</span>
                       {row3Buttons.map(renderButton)}
                     </div>
                   </>

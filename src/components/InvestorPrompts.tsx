@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, User, ChevronDown, Save, X, MessageSquare, FileText, Mic } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
@@ -33,6 +33,7 @@ const InvestorPrompts: React.FC<InvestorPromptsProps> = ({ isDark, toggleTheme }
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [recordingPrompt, setRecordingPrompt] = useState<string | null>(null);
   const [recognition, setRecognition] = useState<any>(null);
+  const recordingBaseTextRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
@@ -161,28 +162,41 @@ const InvestorPrompts: React.FC<InvestorPromptsProps> = ({ isDark, toggleTheme }
           setRecordingPrompt((currentPrompt) => {
             if (!currentPrompt) return currentPrompt;
             
-            let interimTranscript = '';
-            let finalTranscript = '';
+            // Get the base text that existed when recording started (from ref)
+            const baseText = recordingBaseTextRef.current[currentPrompt] || '';
             
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-              const transcript = event.results[i][0].transcript;
+            // Reconstruct text from scratch using only final results + latest interim
+            let allFinalText = '';
+            let latestInterimText = '';
+            
+            // Collect all final results (these are confirmed)
+            for (let i = 0; i < event.results.length; i++) {
               if (event.results[i].isFinal) {
-                finalTranscript += transcript + ' ';
-              } else {
-                interimTranscript += transcript;
+                allFinalText += event.results[i][0].transcript + ' ';
               }
             }
             
-            if (finalTranscript || interimTranscript) {
-              setPromptTexts((prev) => {
-                const currentText = prev[currentPrompt] || '';
-                const newText = currentText + finalTranscript + (interimTranscript ? interimTranscript : '');
-                return {
-                  ...prev,
-                  [currentPrompt]: newText.trim(),
-                };
-              });
+            // Get the latest interim result (the most recent non-final)
+            for (let i = event.results.length - 1; i >= 0; i--) {
+              if (!event.results[i].isFinal) {
+                latestInterimText = event.results[i][0].transcript;
+                break;
+              }
             }
+            
+            // Build the complete text: base + all final results + latest interim
+            const completeText = (
+              baseText + 
+              (baseText && allFinalText ? ' ' : '') + 
+              allFinalText.trim() + 
+              (latestInterimText ? ' ' + latestInterimText : '')
+            ).replace(/\s+/g, ' ').trim();
+            
+            // Update the prompt text
+            setPromptTexts((prev) => ({
+              ...prev,
+              [currentPrompt]: completeText,
+            }));
             
             return currentPrompt;
           });
@@ -251,13 +265,34 @@ const InvestorPrompts: React.FC<InvestorPromptsProps> = ({ isDark, toggleTheme }
       return;
     }
     
+    // Store the current text as the base text before starting recording
+    // This ensures we don't duplicate existing text when appending voice input
+    recordingBaseTextRef.current[reportName] = promptTexts[reportName] || '';
+    
     setRecordingPrompt(reportName);
     setMessage({ type: 'success', text: `Recording started for ${reportName.replace('-', ' ')}. Click again to stop.` });
     setTimeout(() => setMessage(null), 3000);
   };
 
   const stopRecording = () => {
-    setRecordingPrompt(null);
+    // Get current recording prompt before clearing it
+    setRecordingPrompt((currentPrompt) => {
+      if (currentPrompt) {
+        // Clean up the text by removing any duplicate spaces and trimming
+        setPromptTexts((prev) => {
+          const currentText = prev[currentPrompt] || '';
+          const cleanedText = currentText.replace(/\s+/g, ' ').trim();
+          return {
+            ...prev,
+            [currentPrompt]: cleanedText,
+          };
+        });
+        
+        // Clear the base text for this prompt
+        delete recordingBaseTextRef.current[currentPrompt];
+      }
+      return null;
+    });
     setMessage({ type: 'success', text: 'Recording stopped' });
     setTimeout(() => setMessage(null), 2000);
   };

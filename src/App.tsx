@@ -97,7 +97,12 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
     {
       icon: <BarChart3 className="w-8 h-8 text-gold-500" />,
       title: "Multiple Report Types",
-      description: "Generate scorecards, detailed analysis, diligence questions, and founder feedback reports instantly"
+      description: "Generate scorecards, detailed analysis, diligence questions, and founder feedback reports instantly with professional HTML-to-PDF formatting"
+    },
+    {
+      icon: <Target className="w-8 h-8 text-gold-500" />,
+      title: "Custom Analysis Prompts",
+      description: "Create personalized analysis prompts for Product, Market, Team, and Financial analysis tailored to your investment approach"
     },
     {
       icon: <Shield className="w-8 h-8 text-gold-500" />,
@@ -135,7 +140,12 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
     {
       step: "6",
       title: "Reports & Feedback",
-      description: "Create detailed analysis reports, share constructive feedback with founders, track pipeline status"
+      description: "Generate professional PDF reports (scorecards, detailed analysis, diligence questions, founder feedback) with real-time status tracking"
+    },
+    {
+      step: "7",
+      title: "Custom Prompts",
+      description: "Personalize your analysis by creating custom prompts for each category, with voice input support for quick customization"
     }
   ];
 
@@ -146,7 +156,11 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
     },
     {
       question: "What reports can I generate?",
-      answer: "Generate four types of reports: (1) Comprehensive Score Cards with category ratings, (2) Detailed Analysis Reports with deep insights, (3) Diligence Questions for follow-up investigation, and (4) Feedback Reports to share with founders."
+      answer: "Generate four types of professional PDF reports: (1) Comprehensive Score Cards with category ratings, (2) Detailed Analysis Reports with deep insights, (3) Diligence Questions for follow-up investigation, and (4) Founder Feedback Reports to share with entrepreneurs. All reports are generated with high-quality HTML-to-PDF formatting and automatically update with real-time status tracking."
+    },
+    {
+      question: "Can I customize the AI analysis prompts?",
+      answer: "Yes! Navigate to Utilities → Investor Prompts to create custom analysis prompts for Product, Market, Team, and Financial analysis. You can type or use voice input to personalize how the AI evaluates ventures based on your specific investment criteria. Custom prompts are clearly marked with an asterisk (*) on the analysis buttons."
     },
     {
       question: "How does automated screening work?",

@@ -369,7 +369,8 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                     }`}
                   />
                 </div>
-                <div>
+                {/* Hidden: Preferred LLM field */}
+                <div className="hidden">
                   <label className={`block text-sm font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'} mb-2`}>
                     Preferred LLM
                   </label>
@@ -485,7 +486,8 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                             }`}
                           />
                         </div>
-                        <div>
+                        {/* Hidden: Preferred LLM field */}
+                        <div className="hidden">
                           <label className={`block text-sm font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'} mb-2`}>
                             Preferred LLM
                           </label>
@@ -530,11 +532,8 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-xl font-bold text-gold-600">{prompt.prompt_name}</h3>
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              prompt.preferred_llm === 'GPT-4' ? 'bg-success-100 text-success-800' :
-                              prompt.preferred_llm === 'Claude-3' ? 'bg-gold-100 text-gold-800' :
-                              'bg-navy-100 text-navy-800'
-                            }`}>
+                            {/* Hidden: Preferred LLM badge */}
+                            <span className="hidden">
                               {prompt.preferred_llm}
                             </span>
                           </div>

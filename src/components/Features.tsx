@@ -112,7 +112,8 @@ const Features: React.FC<FeaturesProps> = ({ isDark, toggleTheme }) => {
               <h2 className="text-3xl font-bold">Multiple Report Types</h2>
             </div>
             <p className={`text-lg ${isDark ? 'text-silver-300' : 'text-slate-600'} mb-4`}>
-              Generate professional reports instantly for every stage of your investment process.
+              Generate professional PDF reports instantly with high-quality HTML-to-PDF formatting. Reports feature professional styling, 
+              properly formatted tables, clean layouts, and are ready for sharing or printing.
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div className={`p-4 rounded-lg ${isDark ? 'bg-navy-800' : 'bg-slate-50'}`}>
@@ -186,6 +187,40 @@ const Features: React.FC<FeaturesProps> = ({ isDark, toggleTheme }) => {
                 <p className="text-sm">Top candidates</p>
               </div>
             </div>
+          </div>
+
+          {/* Custom Analysis Prompts */}
+          <div className={`${isDark ? 'bg-navy-900' : 'bg-white'} rounded-xl shadow-lg p-8`}>
+            <div className="flex items-center mb-6">
+              <Target className="w-12 h-12 text-gold-500 mr-4" />
+              <h2 className="text-3xl font-bold">Custom Analysis Prompts</h2>
+            </div>
+            <p className={`text-lg ${isDark ? 'text-silver-300' : 'text-slate-600'} mb-4`}>
+              Personalize how AI analyzes ventures by creating custom prompts for each analysis category.
+            </p>
+            <ul className={`space-y-3 ${isDark ? 'text-silver-300' : 'text-slate-700'}`}>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Create custom prompts for Product, Market, Team, and Financial analysis</li>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Voice input support for quick prompt customization</li>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Custom prompts clearly marked with asterisk (*) on buttons</li>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Reports indicate when custom investor prompts are used</li>
+            </ul>
+          </div>
+
+          {/* Real-Time Status Tracking */}
+          <div className={`${isDark ? 'bg-navy-900' : 'bg-white'} rounded-xl shadow-lg p-8`}>
+            <div className="flex items-center mb-6">
+              <Zap className="w-12 h-12 text-yellow-500 mr-4" />
+              <h2 className="text-3xl font-bold">Real-Time Status Tracking</h2>
+            </div>
+            <p className={`text-lg ${isDark ? 'text-silver-300' : 'text-slate-600'} mb-4`}>
+              Visual feedback and automatic updates keep you informed without manual refreshing.
+            </p>
+            <ul className={`space-y-3 ${isDark ? 'text-silver-300' : 'text-slate-700'}`}>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Button color states: Blue (ready), Yellow (running), Green (completed)</li>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Spinner icons appear when analysis is in progress</li>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Automatic polling updates buttons and reports every 5 seconds</li>
+              <li className="flex items-start"><CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> No manual refresh needed—everything updates automatically</li>
+            </ul>
           </div>
 
           {/* Security */}

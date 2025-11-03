@@ -77,6 +77,9 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                         <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
                           Edit Prompts
                         </Link>
+                        <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                          Investor Prompts
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -333,16 +336,29 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                     4
                   </div>
                   <div className="flex-grow">
-                    <h3 className="text-xl font-semibold mb-2">Evaluation Score Card & Reports</h3>
-                    <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
-                      Based on the four analysis categories, the system generates a detailed evaluation and multiple report types:
+                    <h3 className="text-xl font-semibold mb-2">Analysis & Report Generation</h3>
+                    <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-3`}>
+                      On the Venture Detail page, you'll find organized action buttons:
                     </p>
-                    <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-1`}>
-                      <li><strong>Comprehensive Score Card:</strong> Overall evaluation scores across all four categories 
-                      (Product/Service, Market, Leadership Team, Financials) with recommendations</li>
-                      <li><strong>Detailed Analysis Report:</strong> In-depth analysis document covering all findings and insights</li>
-                      <li><strong>Feedback Report to the Founder:</strong> Constructive feedback document that can be shared with entrepreneurs</li>
+                    <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-2 mb-3`}>
+                      <li><strong>Analyze:</strong> Run individual analysis reports (Product, Market, Team, Financials). 
+                      Button colors indicate status: <span className="font-semibold">Blue</span> (not started), 
+                      <span className="font-semibold text-yellow-500"> Yellow</span> (in progress), 
+                      <span className="font-semibold text-green-500"> Green</span> (completed)</li>
+                      <li><strong>Create:</strong> Generate comprehensive reports after all 4 analyses are complete:
+                        <ul className="ml-6 mt-1 space-y-1">
+                          <li>Score Card - Overall evaluation scores across all categories</li>
+                          <li>Detail Report - In-depth analysis document</li>
+                          <li>Diligence Questions - AI-generated follow-up questions</li>
+                          <li>Founder Report - Feedback to share with entrepreneurs</li>
+                        </ul>
+                      </li>
+                      <li><strong>Action:</strong> Move companies to Diligence or Reject status</li>
                     </ul>
+                    <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                      All reports are generated as professional PDFs using high-quality HTML-to-PDF formatting with proper styling, tables, and formatting.
+                      The system automatically polls for completion, so buttons update in real-time without manual refresh.
+                    </p>
                   </div>
                 </div>
 
@@ -352,14 +368,39 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                     5
                   </div>
                   <div className="flex-grow">
+                    <h3 className="text-xl font-semibold mb-2">Real-Time Status Tracking</h3>
+                    <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                      The platform provides real-time visual feedback:
+                    </p>
+                    <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-1 mb-3`}>
+                      <li><strong>Button Color States:</strong> 
+                        <ul className="ml-6 mt-1 space-y-1">
+                          <li><span className="font-semibold text-blue-500">Blue</span> - Report doesn't exist (ready to run)</li>
+                          <li><span className="font-semibold text-yellow-500">Yellow</span> - Analysis/report generation in progress (with spinner icon)</li>
+                          <li><span className="font-semibold text-green-500">Green</span> - Report completed and available</li>
+                        </ul>
+                      </li>
+                      <li><strong>Automatic Updates:</strong> The system polls every 5 seconds for report completion, updating buttons and reports list automatically</li>
+                      <li><strong>Spinner Icons:</strong> When buttons turn yellow, a spinning icon appears alongside the status text (Analyzing..., Creating...)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Step 6 */}
+                <div className="flex">
+                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-4 mt-1">
+                    6
+                  </div>
+                  <div className="flex-grow">
                     <h3 className="text-xl font-semibold mb-2">Diligence Questions & Decision Making</h3>
                     <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       For ventures moving forward in your pipeline:
                     </p>
                     <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-1`}>
                       <li><strong>Diligence Questions:</strong> AI-generated key questions for further consideration and deeper investigation</li>
-                      <li><strong>Status Management:</strong> Update venture status (Open, Reject, Diligence, Invest) and track your pipeline</li>
+                      <li><strong>Status Management:</strong> Use the Action buttons to move ventures to "To Diligence" (when status is Analyzed) or Reject</li>
                       <li><strong>Ongoing Evaluation:</strong> Re-analyze companies as new information becomes available</li>
+                      <li><strong>Download Reports:</strong> All generated PDF reports can be downloaded for offline review or sharing</li>
                     </ul>
                   </div>
                 </div>
@@ -416,9 +457,13 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                     <Settings className="w-5 h-5 mr-2 text-blue-500" />
                     Custom Analysis Prompts
                   </h3>
-                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Navigate to <strong>Utilities → Edit Prompts</strong> to customize how AI analyzes ventures based on your specific 
-                    investment approach and focus areas.
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mb-2`}>
+                    Navigate to <strong>Utilities → Investor Prompts</strong> to create personalized analysis prompts for Product, Market, Team, and Financial analysis. 
+                    Customize how the AI evaluates ventures based on your specific investment approach and criteria.
+                  </p>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                    <strong>Voice Input:</strong> Use the microphone button next to each prompt field to speak your custom analysis criteria for quick customization. 
+                    Custom prompts are clearly indicated with an asterisk (*) on the analysis buttons in the Venture Detail screen.
                   </p>
                 </div>
 
@@ -449,6 +494,28 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                   </h3>
                   <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     Proposals are automatically screened against your criteria, saving time by filtering out non-matches before detailed analysis.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 flex items-center">
+                    <Zap className="w-5 h-5 mr-2 text-blue-500" />
+                    Real-Time Status Tracking
+                  </h3>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    The platform automatically polls for report completion every 5 seconds. Watch buttons change color: Blue (ready), 
+                    Yellow with spinner (running), Green (completed). No manual refresh needed—everything updates automatically!
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 flex items-center">
+                    <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                    Professional PDF Reports
+                  </h3>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    All reports are generated with high-quality HTML-to-PDF conversion, featuring professional formatting, styled tables, 
+                    proper margins, and clean layouts suitable for sharing with your team or portfolio companies.
                   </p>
                 </div>
               </div>
@@ -560,7 +627,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
               <h3 className="text-lg font-semibold mb-2">Can I customize the analysis criteria?</h3>
               <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 Yes! Navigate to <strong>Utilities → Investor Preferences</strong> to set your investment criteria, and 
-                <strong> Utilities → Edit Prompts</strong> to customize how the AI analyzes ventures.
+                <strong> Utilities → Investor Prompts</strong> to create custom analysis prompts for Product, Market, Team, and Financial analysis. 
+                You can type or use the microphone button for voice input to quickly customize prompts.
               </p>
             </div>
 
@@ -568,7 +636,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
               <h3 className="text-lg font-semibold mb-2">How long does analysis take?</h3>
               <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 Initial screening typically completes within minutes. Detailed analysis including all reports can take 5-15 minutes 
-                depending on the complexity of the proposal and documents provided.
+                depending on the complexity of the proposal and documents provided. The platform provides real-time status updates—watch for 
+                buttons to turn yellow (with spinner) when running, then green when complete. No manual refresh needed!
               </p>
             </div>
 
