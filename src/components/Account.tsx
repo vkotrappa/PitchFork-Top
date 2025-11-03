@@ -291,6 +291,9 @@ const Account: React.FC<AccountProps> = ({ isDark, toggleTheme }) => {
                         <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
                           Edit Prompts
                         </Link>
+                        <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                          Investor Prompts
+                        </Link>
                       </div>
                     )}
                   </div>

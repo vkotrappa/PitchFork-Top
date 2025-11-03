@@ -88,12 +88,14 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isCreatingDetailReport, setIsCreatingDetailReport] = useState(false);
   const [isCreatingDiligenceQuestions, setIsCreatingDiligenceQuestions] = useState(false);
   const [isCreatingFounderReport, setIsCreatingFounderReport] = useState(false);
+  const [isTestingTeamAnalysis, setIsTestingTeamAnalysis] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>('');
   const [modalSize, setModalSize] = useState({ width: 0, height: 0 });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [customPrompts, setCustomPrompts] = useState<Set<string>>(new Set());
 
   // Check authentication and load company data
   useEffect(() => {
@@ -110,6 +112,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         await loadAnalysis(id);
         await loadAnalysisReports(id);
         await loadDocuments(id);
+        await loadInvestorPrompts();
       }
     };
     
@@ -261,6 +264,38 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       setDocuments(data || []);
     } catch (error) {
       console.error('Error loading documents:', error);
+    }
+  };
+
+  const loadInvestorPrompts = async () => {
+    try {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('investor_prompts')
+        .select('report_name')
+        .eq('user_id', currentUser.id)
+        .not('custom_prompt', 'is', null);
+
+      if (error) {
+        console.error('Error loading investor prompts:', error);
+        return;
+      }
+
+      // Create a Set of report names that have custom prompts
+      const promptSet = new Set<string>();
+      if (data) {
+        data.forEach(prompt => {
+          promptSet.add(prompt.report_name);
+        });
+      }
+      
+      setCustomPrompts(promptSet);
+    } catch (error) {
+      console.error('Error loading investor prompts:', error);
     }
   };
 
@@ -985,6 +1020,110 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const handleAnalyzeMarket = () => handleAnalysis('market');
   const handleAnalyzeFinancials = () => handleAnalysis('financial');
 
+  const handleTeamAnalysisTest = async () => {
+    if (!company || !id) {
+      alert('Company information not available');
+      return;
+    }
+
+    setIsTestingTeamAnalysis(true);
+    try {
+      console.log('Testing team analysis (HTML) for company:', company.name);
+
+      // Get current user
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get analysis ID
+      let analysisId = analysis.length > 0 ? analysis[0].id : '';
+
+      // Get company documents
+      const { data: documentsData, error: documentsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('company_id', company.id);
+
+      if (documentsError) {
+        console.error('Error fetching company documents:', documentsError);
+        setMessageStatus({ type: 'error', text: 'Failed to fetch company documents' });
+        return;
+      }
+
+      if (!documentsData || documentsData.length === 0) {
+        setMessageStatus({ type: 'error', text: 'No documents found for team analysis' });
+        return;
+      }
+
+      // Call the analyze-company-html edge function
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-html`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            companyId: id,
+            companyName: company.name,
+            analysisId: analysisId,
+            analysisType: 'team',
+            documents: documentsData.map(doc => ({
+              id: doc.id,
+              name: doc.document_name,
+              path: doc.path
+            }))
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to run team analysis test';
+        try {
+          const errorData = await response.json();
+          console.error('Error response from function:', errorData);
+          errorMessage = errorData.error || errorMessage;
+          if (errorData.details) {
+            errorMessage += ` - ${errorData.details}`;
+          }
+          if (errorData.statusText) {
+            errorMessage += ` (${errorData.statusText})`;
+          }
+        } catch (e) {
+          const errorText = await response.text();
+          console.error('Error response text:', errorText);
+          errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Team analysis test completed:', result);
+
+      // Reload the analysis reports to show the new report
+      await loadAnalysisReports(id);
+      
+      setMessageStatus({ type: 'success', text: 'Team analysis test completed successfully!' });
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setMessageStatus(null);
+      }, 5000);
+    } catch (error) {
+      console.error('Error running team analysis test:', error);
+      setMessageStatus({ type: 'error', text: `Failed to run team analysis test: ${error instanceof Error ? error.message : 'Unknown error'}` });
+    } finally {
+      setIsTestingTeamAnalysis(false);
+    }
+  };
+
   const handleCreateScoreCard = async () => {
     if (!company || !id) {
       alert('Company information not available');
@@ -1658,6 +1797,9 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                       <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
                         Edit Prompts
                       </Link>
+                      <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                        Investor Prompts
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -1756,7 +1898,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                 const currentAnalysisStatus = analysis.length > 0 ? analysis[0].status : 'Submitted';
                 
                 // Row 1: Analysis buttons (in specific order)
-                const row1Buttons = ['Analyze-Product', 'Analyze-Market', 'Analyze-Team', 'Analyze-Financials'];
+                const row1Buttons = ['Analyze-Product', 'Analyze-Market', 'Analyze-Team', 'Analyze-Financials', 'Team-Analysis-Test'];
                 
                 // Row 2: Create buttons
                 const row2Buttons = ['Create-ScoreCard', 'Create-DetailReport', 'Create-DiligenceQuestions', 'Create-FounderReport'];
@@ -1769,6 +1911,14 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                   row3Buttons = ['Reject'];
                 }
                 
+                // Map button statuses to report names for custom prompt check
+                const statusToReportName: Record<string, string> = {
+                  'Analyze-Product': 'Product-Analysis',
+                  'Analyze-Market': 'Market-Analysis',
+                  'Analyze-Team': 'Team-Analysis',
+                  'Analyze-Financials': 'Financial-Analysis',
+                };
+                
                 const renderButton = (status: string) => {
                   const isActive = 
                     (status === 'Move to Diligence' && currentAnalysisStatus === 'In-Diligence') ||
@@ -1778,6 +1928,11 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                   // Determine button style based on type
                   const isAnalysisButton = status.startsWith('Analyze-');
                   const isCreateButton = status.startsWith('Create-');
+                  const isTestButton = status === 'Team-Analysis-Test';
+                  
+                  // Check if this button has a custom prompt
+                  const reportName = statusToReportName[status];
+                  const hasCustomPrompt = reportName ? customPrompts.has(reportName) : false;
                   
                   // Check if all required analysis reports exist (for Create buttons)
                   const allAnalysisReportsExist = hasAllRequiredAnalysisReports();
@@ -1795,6 +1950,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     (status === 'Analyze-Product' && isAnalyzingProduct) ||
                     (status === 'Analyze-Market' && isAnalyzingMarket) ||
                     (status === 'Analyze-Financials' && isAnalyzingFinancials) ||
+                    (status === 'Team-Analysis-Test' && isTestingTeamAnalysis) ||
                     (status === 'Create-ScoreCard' && (isCreatingScoreCard || !allAnalysisReportsExist)) ||
                     (status === 'Create-DetailReport' && (isCreatingDetailReport || !allAnalysisReportsExist)) ||
                     (status === 'Create-DiligenceQuestions' && (isCreatingDiligenceQuestions || !allAnalysisReportsExist)) ||
@@ -1829,6 +1985,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                           handleCreateDiligenceQuestions();
                         } else if (status === 'Create-FounderReport') {
                           handleCreateFounderReport();
+                        } else if (status === 'Team-Analysis-Test') {
+                          handleTeamAnalysisTest();
                         } else {
                           handleStatusChange(status);
                         }
@@ -1838,13 +1996,15 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                       className={`px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                         isActive
                           ? 'bg-blue-600 text-white'
-                          : isAnalysisButton && isAnalysisComplete
-                            ? isDark
-                              ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                              : 'bg-gray-400 text-white hover:bg-gray-500'
-                            : isAnalysisButton
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : isCreateButton
+                          : isTestButton
+                            ? 'bg-orange-600 text-white hover:bg-orange-700'
+                            : isAnalysisButton && isAnalysisComplete
+                              ? isDark
+                                ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                : 'bg-gray-400 text-white hover:bg-gray-500'
+                              : isAnalysisButton
+                                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                : isCreateButton
                                 ? (status === 'Create-ScoreCard' && existingReportTypes.includes('scorecard')) ||
                                   (status === 'Create-DetailReport' && existingReportTypes.includes('detail-report')) ||
                                   (status === 'Create-DiligenceQuestions' && existingReportTypes.includes('diligence-questions')) ||
@@ -1860,8 +2020,9 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     >
                       {isDisabled && status.startsWith('Analyze-') ? 'Analyzing...' : 
                        isDisabled && status.startsWith('Create-') ? 'Creating...' :
+                       isDisabled && status === 'Team-Analysis-Test' ? 'Testing...' :
                        isUpdating ? 'Updating...' : 
-                       status.replace(/-/g, ' ')}
+                       hasCustomPrompt ? `* ${status.replace(/-/g, ' ')}` : status.replace(/-/g, ' ')}
                     </button>
                   );
                 };

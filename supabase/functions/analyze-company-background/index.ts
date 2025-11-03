@@ -157,7 +157,7 @@ serve(async (req) => {
 
     console.log('Starting background analysis with documents:', requestDocuments?.length || 0);
     
-    // Fetch the prompt from the database
+    // Fetch the prompt - check investor_prompts first, then system prompts
     const config = {
       team: { promptName: 'Team-Analysis' },
       product: { promptName: 'Product-Analysis' },
@@ -165,13 +165,34 @@ serve(async (req) => {
       financial: { promptName: 'Financial-Analysis' }
     }[analysisType];
     
-    const { data: promptData } = await supabaseAdmin
-      .from('prompts')
-      .select('prompt_detail')
-      .eq('prompt_name', config.promptName)
-      .single();
+    let promptText: string | undefined;
     
-    console.log('Found prompt:', promptData?.prompt_detail ? 'Yes' : 'No');
+    // First, check if investor has custom prompt
+    console.log(`Checking for custom prompt for ${config.promptName}...`);
+    const { data: customPromptData } = await supabaseAdmin
+      .from('investor_prompts')
+      .select('custom_prompt')
+      .eq('user_id', userId)
+      .eq('report_name', config.promptName)
+      .maybeSingle();
+    
+    if (customPromptData && customPromptData.custom_prompt) {
+      promptText = customPromptData.custom_prompt;
+      console.log(`Using custom prompt from investor_prompts table`);
+    } else {
+      // Fall back to system prompt
+      console.log(`Fetching ${config.promptName} prompt from prompts table...`);
+      const { data: promptData } = await supabaseAdmin
+        .from('prompts')
+        .select('prompt_detail')
+        .eq('prompt_name', config.promptName)
+        .single();
+      
+      promptText = promptData?.prompt_detail;
+      console.log('Using system prompt from database');
+    }
+    
+    console.log('Found prompt:', promptText ? 'Yes' : 'No');
     
     // Start the actual analysis in the background
     // We'll call the main analyze-company function asynchronously
@@ -186,7 +207,7 @@ serve(async (req) => {
         companyName,
         analysisId,
         analysisType,
-        prompt: promptData?.prompt_detail,
+        prompt: promptText,
         documents: requestDocuments || []
       })
     });

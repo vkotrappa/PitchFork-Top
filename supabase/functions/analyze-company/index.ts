@@ -261,13 +261,41 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 3: Get the prompt (from request or database)
+    // Step 3: Get the prompt (check investor_prompts first, then request, then system prompts)
     let promptText: string;
-    if (requestPrompt) {
+    let isCustomPrompt = false;
+    let investorName: string | null = null;
+
+    // ALWAYS check for custom prompt first, regardless of requestPrompt
+    console.log(`Checking for custom prompt for ${config.promptName}...`);
+    const { data: customPromptData, error: customPromptError } = await supabaseAdmin
+      .from('investor_prompts')
+      .select('custom_prompt, user_id')
+      .eq('user_id', investorUserId)
+      .eq('report_name', config.promptName)
+      .maybeSingle();
+
+    if (!customPromptError && customPromptData && customPromptData.custom_prompt) {
+      promptText = customPromptData.custom_prompt;
+      isCustomPrompt = true;
+      console.log(`Using custom prompt from investor_prompts table`);
+      
+      // Get investor name for report header
+      const { data: investorData } = await supabaseAdmin
+        .from('investor_details')
+        .select('name, firm_name')
+        .eq('user_id', investorUserId)
+        .maybeSingle();
+      
+      investorName = investorData?.name || investorData?.firm_name || 'Investor';
+      console.log(`Custom prompt detected. Investor name: ${investorName}`);
+    } else if (requestPrompt) {
+      // If no custom prompt, use prompt from request
       promptText = requestPrompt;
-      console.log('Using prompt from request');
+      console.log('Using prompt from request (no custom prompt found)');
     } else {
-      console.log(`Fetching ${config.promptName} prompt...`);
+      // Fall back to system prompt
+      console.log(`Fetching ${config.promptName} prompt from prompts table...`);
       const { data: promptData, error: promptError } = await supabaseAdmin
         .from('prompts')
         .select('prompt_detail, preferred_llm')
@@ -279,7 +307,7 @@ Deno.serve(async (req: Request) => {
         throw new Error(`${config.promptName} prompt not found in database. Please ensure the prompt exists in the prompts table.`);
       }
       promptText = promptData.prompt_detail;
-      console.log('Using prompt from database');
+      console.log('Using system prompt from database');
     }
 
     // Step 4: Process documents or existing reports
@@ -517,6 +545,8 @@ Do NOT provide generic placeholder analysis. You must analyze the actual uploade
 
     // Step 10: Generate PDF Report
     console.log('Generating PDF report...');
+    console.log('isCustomPrompt:', isCustomPrompt);
+    console.log('investorName:', investorName);
     const pdf = new jsPDF();
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -529,11 +559,28 @@ Do NOT provide generic placeholder analysis. You must analyze the actual uploade
     pdf.setTextColor(31, 41, 55); // Dark gray
     pdf.text(config.reportTitle, margin, margin);
 
+    // Custom prompt notice if applicable - right under the title
+    let companyNameY = margin + 10;
+    
+    console.log('Checking custom prompt condition:', isCustomPrompt && investorName);
+    if (isCustomPrompt && investorName) {
+      console.log('Adding custom prompt notice to PDF');
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(75, 85, 99); // Medium gray
+      pdf.text(
+        `Custom Analysis based on criteria by : ${investorName}`,
+        margin,
+        margin + 10
+      );
+      companyNameY = margin + 18;
+    }
+
     // Add company name
     pdf.setFontSize(16);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(75, 85, 99); // Medium gray
-    pdf.text(`Company: ${companyName}`, margin, margin + 12);
+    pdf.text(`Company: ${companyName}`, margin, companyNameY);
 
     // Add date and metadata
     pdf.setFontSize(10);
@@ -547,26 +594,31 @@ Do NOT provide generic placeholder analysis. You must analyze the actual uploade
       hour: '2-digit', 
       minute: '2-digit' 
     });
-    pdf.text(`Generated: ${dateStr} at ${timeStr}`, margin, margin + 19);
-    pdf.text(`Model: GPT-4 Turbo`, margin, margin + 24);
+    // Add date and metadata - positioned after company name
+    const metadataY = companyNameY + 7;
+    pdf.text(`Generated: ${dateStr} at ${timeStr}`, margin, metadataY);
+    pdf.text(`Model: GPT-4 Turbo`, margin, metadataY + 5);
 
     // Add separator line
+    const separatorY = metadataY + 12;
     pdf.setDrawColor(209, 213, 219); // Light gray border
     pdf.setLineWidth(0.5);
-    pdf.line(margin, margin + 28, pageWidth - margin, margin + 28);
+    pdf.line(margin, separatorY, pageWidth - margin, separatorY);
 
     // Add "CONFIDENTIAL" watermark
     pdf.setFontSize(10);
     pdf.setTextColor(220, 38, 38); // Red
     pdf.setFont('helvetica', 'bold');
-    pdf.text('CONFIDENTIAL', pageWidth - margin - 30, margin + 24);
+    pdf.text('CONFIDENTIAL', pageWidth - margin - 30, metadataY + 5);
 
     // Add analysis content
     pdf.setFontSize(11);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(31, 41, 55); // Dark gray for body text
     
-    let yPosition = margin + 38;
+    // Adjust starting position for content
+    const contentStartY = separatorY + 5;
+    let yPosition = contentStartY;
     const lineHeight = 6;
     
     // Split text into lines

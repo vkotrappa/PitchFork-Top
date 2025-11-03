@@ -1,9 +1,19 @@
--- Ensure Team-Analysis prompt exists in the prompts table
--- Run this in your Supabase SQL Editor if the Team-Analysis function is failing
+/*
+  # Add Team-Analysis-HTML Prompt
+  
+  1. Changes
+    - Insert Team-Analysis-HTML prompt into prompts table
+    - Use ON CONFLICT to update if already exists
+  
+  2. Details
+    - Prompt focuses on team composition, experience, and capability assessment
+    - Uses GPT-4 as preferred LLM
+    - Copy of Team-Analysis prompt for HTML/CSS PDF generation testing
+*/
 
 INSERT INTO prompts (prompt_name, prompt_detail, preferred_llm) 
 VALUES (
-  'Team-Analysis', 
+  'Team-Analysis-HTML', 
   'Analyze the team composition and leadership structure in this document. Focus on:
 
 1. Key team members and their roles
@@ -22,22 +32,6 @@ ON CONFLICT (prompt_name) DO UPDATE
 SET prompt_detail = EXCLUDED.prompt_detail,
     preferred_llm = EXCLUDED.preferred_llm,
     updated_at = now();
-
--- Verify the prompt was inserted
-SELECT prompt_name, LEFT(prompt_detail, 100) as prompt_preview, preferred_llm, created_at
-FROM prompts
-WHERE prompt_name = 'Team-Analysis';
-
-
-
-
-
-
-
-
-
-
-
 
 
 

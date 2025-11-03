@@ -23,10 +23,13 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [companyName, setCompanyName] = useState<string>('');
 
   useEffect(() => {
     loadInvestors();
-  }, []);
+    loadCompanyName();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
 
   const loadInvestors = async () => {
     try {
@@ -44,6 +47,22 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
       setMessage({ type: 'error', text: 'Failed to load investors' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadCompanyName = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', companyId)
+        .single();
+
+      if (error) throw error;
+
+      setCompanyName(data?.name || '');
+    } catch (error) {
+      console.error('Error loading company name:', error);
     }
   };
 
@@ -142,7 +161,7 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
 Best regards,
 Admin@PitchFork.com`,
               senderName: 'Admin@PitchFork.com',
-              companyName: 'Pitch Deck Submission',
+              companyName: companyName || 'Pitch Deck Submission',
               messageType: 'admin'
             })
           });

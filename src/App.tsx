@@ -14,6 +14,7 @@ import CompanyList from './components/CompanyList';
 import TestFiles from './components/TestFiles';
 import InvestorSelection from './components/InvestorSelection';
 import InvestorPreferences from './components/InvestorPreferences';
+import InvestorPrompts from './components/InvestorPrompts';
 import Help from './components/Help';
 import Account from './components/Account';
 import Features from './components/Features';
@@ -237,7 +238,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
                 AI-Driven VC Investment Platform
               </h1>
               <h2 className="text-2xl md:text-3xl font-inter font-bold mb-6 text-slate-900 dark:text-silver-100">
-                Comprehensive 4-Category Analysis + Automated Screening
+                Screening and Comprehensive <span className="whitespace-nowrap">4-Category</span> Analysis in Minutes
               </h2>
               <p className="text-lg mb-8 text-slate-600 dark:text-silver-300 leading-relaxed font-body">
                 AI analyzes ventures across Product/Service, Market, Leadership Team, and Financials using pitch decks, documents, and public data. 
@@ -564,6 +565,10 @@ function App() {
         <Route
           path="/investor-preferences"
           element={<InvestorPreferences isDark={isDark} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/investor-prompts"
+          element={<InvestorPrompts isDark={isDark} toggleTheme={toggleTheme} />}
         />
         <Route
           path="/help"
