@@ -18,20 +18,19 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const currentUser = await getCurrentUser();
-      if (!currentUser) {
-        navigate('/login');
-        return;
+      if (currentUser) {
+        setUser(currentUser);
+
+        // Check if user is a founder
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .single();
+
+        setIsFounder(profile?.role === 'founder');
       }
-      setUser(currentUser);
-
-      // Check if user is a founder
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', currentUser.id)
-        .single();
-
-      setIsFounder(profile?.role === 'founder');
+      // No redirect - allow access without authentication
     };
 
     checkAuth();
@@ -56,8 +55,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Navigation Menu */}
-              {!isFounder && (
+              {/* Navigation Menu - Only show if user is logged in */}
+              {user && !isFounder && (
                 <nav className="hidden md:flex items-center space-x-6">
                   <Link to="/dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
                   
@@ -112,8 +111,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                 </nav>
               )}
 
-              {/* Founder Navigation */}
-              {isFounder && (
+              {/* Founder Navigation - Only show if user is logged in */}
+              {user && isFounder && (
                 <nav className="hidden md:flex items-center space-x-6">
                   <Link to="/founder-dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
                   <Link to="/help" className={`text-blue-600 font-medium transition-colors`}>Help</Link>
@@ -144,6 +143,17 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                 </nav>
               )}
 
+              {/* Public Navigation - Show when user is not logged in */}
+              {!user && (
+                <nav className="hidden md:flex items-center space-x-6">
+                  <Link to="/" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Home</Link>
+                  <Link to="/help" className={`text-blue-600 font-medium transition-colors`}>Help</Link>
+                  <Link to="/login" className={`${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} px-4 py-2 rounded-lg transition-colors`}>
+                    Login/Sign-Up
+                  </Link>
+                </nav>
+              )}
+
               <button
                 onClick={toggleTheme}
                 className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
@@ -151,13 +161,25 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                 {isDark ? '☀️' : '🌙'}
               </button>
 
-              <Link
-                to={isFounder ? "/founder-dashboard" : "/dashboard"}
-                className={`flex items-center px-4 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Dashboard
-              </Link>
+              {/* Show appropriate back link based on user status */}
+              {user && (
+                <Link
+                  to={isFounder ? "/founder-dashboard" : "/dashboard"}
+                  className={`flex items-center px-4 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/"
+                  className={`flex items-center px-4 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Home
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -222,8 +244,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
         </div>
 
         {/* For Investors */}
-        {!isFounder && (
-          <>
+        {/* Show to everyone, not just authenticated investors */}
+        <>
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-8 mb-8`}>
               <h2 className="text-2xl font-bold mb-6 flex items-center">
                 <Target className="w-6 h-6 mr-2 text-blue-600" />
@@ -520,12 +542,11 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                 </div>
               </div>
             </div>
-          </>
-        )}
+        </>
 
         {/* For Founders */}
-        {isFounder && (
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-8 mb-8`}>
+        {/* Show to everyone, not just authenticated founders */}
+        <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-8 mb-8`}>
             <h2 className="text-2xl font-bold mb-6 flex items-center">
               <Target className="w-6 h-6 mr-2 text-blue-600" />
               For Founders: Submitting Your Pitch
@@ -605,7 +626,6 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
               </div>
             </div>
           </div>
-        )}
 
         {/* Common Questions */}
         <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-8 mb-8`}>

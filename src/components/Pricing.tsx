@@ -16,7 +16,7 @@ const Pricing: React.FC<PricingProps> = ({ isDark, toggleTheme }) => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
-              <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
+              <div className="text-2xl font-bold text-blue-600">
                 Pitch Fork
               </div>
             </div>
@@ -32,98 +32,87 @@ const Pricing: React.FC<PricingProps> = ({ isDark, toggleTheme }) => {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-6 bg-gold-gradient bg-clip-text text-transparent">Pricing Plans</h1>
+          <h1 className="text-5xl font-bold mb-6 text-blue-600">Simple, Transparent Pricing</h1>
           <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} max-w-3xl mx-auto`}>
-            Flexible pricing designed to scale with your investment needs
+            Pay only for what you use. No hidden fees, no subscriptions.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
-          {/* Starter */}
-          <div className={`${isDark ? 'bg-navy-900 border-navy-700' : 'bg-white border-silver-200'} rounded-xl shadow-lg border p-8`}>
-            <h3 className="text-2xl font-bold mb-4">Starter</h3>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">Contact Us</span>
+        <div className="grid md:grid-cols-2 gap-8 mb-16 max-w-5xl mx-auto">
+          {/* Investors */}
+          <div className={`${isDark ? 'bg-navy-900 border-blue-600' : 'bg-white border-blue-400'} rounded-xl shadow-lg border-2 p-8 relative`}>
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white rounded-full text-sm font-semibold">
+              For Investors
             </div>
-            <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} mb-6`}>
-              Perfect for individual angel investors getting started
+            <h3 className="text-2xl font-bold mb-4 text-center mt-4">Investor Plan</h3>
+            <div className="mb-6 text-center">
+              <span className="text-5xl font-bold text-blue-600">$100</span>
+              <p className={`text-lg ${isDark ? 'text-silver-300' : 'text-slate-600'} mt-2`}>
+                for every 25 companies
+              </p>
+            </div>
+            <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} mb-6 text-center`}>
+              Pay as you receive company proposals for analysis
             </p>
             <ul className="space-y-3 mb-8">
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Up to 25 analyses per month</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> 4-category comprehensive analysis</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> All report types included</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Receive up to 25 company proposals</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> 4-category comprehensive AI analysis</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> All report types (Score Card, Detail Report, Diligence Questions, Founder Report)</li>
               <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Automated screening</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Email support</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Custom analysis prompts</li>
             </ul>
             <Link to="/signup" className="block w-full text-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold">
               Get Started
             </Link>
           </div>
 
-          {/* Professional */}
-          <div className={`${isDark ? 'bg-navy-900 border-gold-600' : 'bg-white border-gold-400'} rounded-xl shadow-lg border-2 p-8 relative`}>
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gold-gradient text-white rounded-full text-sm font-semibold">
-              Most Popular
+          {/* Founders */}
+          <div className={`${isDark ? 'bg-navy-900 border-orange-600' : 'bg-white border-orange-400'} rounded-xl shadow-lg border-2 p-8 relative`}>
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-orange-600 text-white rounded-full text-sm font-semibold">
+              For Founders
             </div>
-            <h3 className="text-2xl font-bold mb-4">Professional</h3>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">Contact Us</span>
+            <h3 className="text-2xl font-bold mb-4 text-center mt-4">Founder Plan</h3>
+            <div className="mb-6 text-center">
+              <span className="text-5xl font-bold text-orange-600">$50</span>
+              <p className={`text-lg ${isDark ? 'text-silver-300' : 'text-slate-600'} mt-2`}>
+                per submission
+              </p>
             </div>
-            <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} mb-6`}>
-              Ideal for active investment groups and funds
+            <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} mb-6 text-center`}>
+              Submit your venture to up to 3 investors per submission
             </p>
             <ul className="space-y-3 mb-8">
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Up to 100 analyses per month</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> 4-category comprehensive analysis</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> All report types included</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Automated screening</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Custom analysis prompts</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Priority support</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Submit to up to 3 investors</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Comprehensive AI analysis by each investor</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Receive detailed feedback reports</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Track submission status</li>
+              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Pay per submission, no subscriptions</li>
             </ul>
-            <Link to="/signup" className="block w-full text-center px-6 py-3 bg-gold-gradient text-white rounded-lg hover:shadow-gold transition-all font-semibold">
+            <Link to="/signup" className="block w-full text-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold">
               Get Started
             </Link>
           </div>
-
-          {/* Enterprise */}
-          <div className={`${isDark ? 'bg-navy-900 border-navy-700' : 'bg-white border-silver-200'} rounded-xl shadow-lg border p-8`}>
-            <h3 className="text-2xl font-bold mb-4">Enterprise</h3>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">Custom</span>
-            </div>
-            <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} mb-6`}>
-              For large funds and institutional investors
-            </p>
-            <ul className="space-y-3 mb-8">
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Unlimited analyses</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> 4-category comprehensive analysis</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> All report types included</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Automated screening</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Custom analysis prompts</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> Dedicated account manager</li>
-              <li className="flex items-start"><Check className="w-5 h-5 text-green-600 mr-2 mt-1 flex-shrink-0" /> API access</li>
-            </ul>
-            <a href="mailto:hello@pitchfork.com" className="block w-full text-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold">
-              Contact Sales
-            </a>
-          </div>
         </div>
 
-        {/* Contact Section */}
-        <div className={`${isDark ? 'bg-navy-900' : 'bg-white'} rounded-xl shadow-lg p-12 text-center`}>
-          <Mail className="w-16 h-16 text-gold-600 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold mb-4">Need a Custom Plan?</h2>
-          <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} mb-8 max-w-2xl mx-auto`}>
-            We offer flexible pricing based on your specific needs, deal volume, and features required. 
-            Contact us for a customized quote that fits your investment group.
-          </p>
-          <a 
-            href="mailto:hello@pitchfork.com" 
-            className="inline-flex items-center px-8 py-4 bg-gold-gradient text-white rounded-lg text-lg font-semibold hover:shadow-gold transition-all duration-300"
-          >
-            <Mail className="w-5 h-5 mr-2" />
-            Contact Us
-          </a>
+        {/* Additional Info */}
+        <div className={`${isDark ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-xl shadow-lg border p-8 text-center max-w-3xl mx-auto`}>
+          <h2 className="text-2xl font-bold mb-4 text-blue-600">How It Works</h2>
+          <div className="grid md:grid-cols-2 gap-6 text-left">
+            <div>
+              <h3 className="font-bold mb-2 text-blue-600">For Investors:</h3>
+              <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'}`}>
+                Pay $100 each time you receive a batch of 25 company proposals. Each batch includes full AI analysis, 
+                all report types, and unlimited access to those 25 companies.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2 text-blue-600">For Founders:</h3>
+              <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'}`}>
+                Pay $50 per submission to send your venture to up to 3 investors. Each investor will receive your 
+                pitch deck and will be able to analyze your company.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
