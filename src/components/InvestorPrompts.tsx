@@ -20,7 +20,8 @@ const InvestorPrompts: React.FC<InvestorPromptsProps> = ({ isDark, toggleTheme }
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [prompts, setPrompts] = useState<Record<string, InvestorPrompt>>({});
   const [promptTexts, setPromptTexts] = useState<Record<string, string>>({
@@ -442,7 +443,7 @@ const InvestorPrompts: React.FC<InvestorPromptsProps> = ({ isDark, toggleTheme }
       {/* Navigation */}
       <nav className={`sticky top-0 z-50 ${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
@@ -450,86 +451,104 @@ const InvestorPrompts: React.FC<InvestorPromptsProps> = ({ isDark, toggleTheme }
               </div>
             </div>
             
-            <div className="hidden md:flex items-center space-x-6">
-              <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>
+            <div className="flex items-center space-x-4 ml-auto">
+              {/* Navigation Menu */}
+              <nav className="hidden md:flex items-center space-x-6">
+                <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>
+                  Dashboard
+                </Link>
+                
+                {/* Preferences Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                  >
+                    Preferences <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showPreferencesMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Screening Criteria
+                      </Link>
+                      <Link to="/investor-prompts" className={`block px-4 py-2 text-sm text-gold-600 font-bold bg-gold-50 dark:bg-gold-900/20`}>
+                        Custom Analysis Prompts
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Admin Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                  >
+                    Admin <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showAdminMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Default Analysis Prompts
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                
+                <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
+                
+                {/* User Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                  >
+                    <User className="w-4 h-4 mr-1" />
+                    User <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showUserMenu && (
+                    <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Account
+                      </Link>
+                      <button 
+                        onClick={handleLogout}
+                        className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </nav>
+              
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-lg ${isDark ? 'bg-navy-800 hover:bg-navy-700' : 'bg-silver-100 hover:bg-silver-200'} transition-colors shadow-sm`}
+              >
+                {isDark ? '☀️' : '🌙'}
+              </button>
+              
+              {/* Back to Dashboard */}
+              <Link 
+                to="/dashboard" 
+                className={`flex items-center px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-navy-800 hover:bg-navy-700' : 'bg-silver-100 hover:bg-silver-200'} transition-colors shadow-sm font-semibold`}
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
                 Dashboard
               </Link>
-              
-              {/* Utilities Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
-                  className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
-                >
-                  Utilities <ChevronDown className="w-4 h-4 ml-1" />
-                </button>
-                {showUtilitiesMenu && (
-                  <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
-                    <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                      Investor Preferences
-                    </Link>
-                    <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                      Edit Prompts
-                    </Link>
-                    <Link to="/investor-prompts" className={`block px-4 py-2 text-sm text-gold-600 font-bold bg-gold-50 dark:bg-gold-900/20`}>
-                      Investor Prompts
-                    </Link>
-                  </div>
-                )}
-              </div>
-              
-              <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
-              
-              {/* User Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
-                >
-                  <User className="w-4 h-4 mr-1" />
-                  User <ChevronDown className="w-4 h-4 ml-1" />
-                </button>
-                {showUserMenu && (
-                  <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
-                    <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                      Account
-                    </Link>
-                    <button 
-                      onClick={handleLogout}
-                      className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}
-                    >
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
-            
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg ${isDark ? 'bg-navy-800 hover:bg-navy-700' : 'bg-silver-100 hover:bg-silver-200'} transition-colors shadow-sm`}
-            >
-              {isDark ? '☀️' : '🌙'}
-            </button>
-            
-            {/* Back to Dashboard */}
-            <Link 
-              to="/dashboard" 
-              className={`flex items-center px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-navy-800 hover:bg-navy-700' : 'bg-silver-100 hover:bg-silver-200'} transition-colors shadow-sm font-semibold`}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Dashboard
-            </Link>
           </div>
         </div>
         
         {/* Click outside handler for dropdowns */}
-        {(showUserMenu || showUtilitiesMenu) && (
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
           <div 
             className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}

@@ -115,3 +115,9 @@ The analyze-company function now uses the same simple jsPDF approach as analyze-
 
 
 
+
+
+
+
+
+

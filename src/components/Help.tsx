@@ -12,7 +12,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
 
   useEffect(() => {
@@ -42,66 +43,80 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`min-h-screen font-inter transition-colors duration-300 ${isDark ? 'bg-navy-950 text-silver-100' : 'bg-silver-50 text-navy-900'}`}>
       {/* Navigation */}
-      <nav className={`${isDark ? 'bg-gray-800/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+      <nav className={`${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
                 Pitch Fork
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               {/* Navigation Menu - Only show if user is logged in */}
               {user && !isFounder && (
                 <nav className="hidden md:flex items-center space-x-6">
-                  <Link to="/dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
+                  <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Dashboard</Link>
                   
-                  {/* Utilities Dropdown */}
+                  {/* Preferences Dropdown */}
                   <div className="relative">
                     <button
-                      onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
-                      className={`flex items-center ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                      onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
+                      className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                     >
-                      Utilities <ChevronDown className="w-4 h-4 ml-1" />
+                      Preferences <ChevronDown className="w-4 h-4 ml-1" />
                     </button>
-                    {showUtilitiesMenu && (
-                      <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                        <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                          Investor Preferences
+                    {showPreferencesMenu && (
+                      <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                        <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                          Screening Criteria
                         </Link>
-                        <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                          Edit Prompts
-                        </Link>
-                        <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                          Investor Prompts
+                        <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                          Custom Analysis Prompts
                         </Link>
                       </div>
                     )}
                   </div>
                   
-                  <Link to="/help" className={`text-blue-600 font-medium transition-colors`}>Help</Link>
+                  {/* Admin Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowAdminMenu(!showAdminMenu)}
+                      className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                    >
+                      Admin <ChevronDown className="w-4 h-4 ml-1" />
+                    </button>
+                    {showAdminMenu && (
+                      <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                        <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                          Default Analysis Prompts
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
                   
                   {/* User Dropdown */}
                   <div className="relative">
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className={`flex items-center ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                      className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                     >
                       <User className="w-4 h-4 mr-1" />
                       User <ChevronDown className="w-4 h-4 ml-1" />
                     </button>
                     {showUserMenu && (
-                      <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                        <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                      <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                        <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                           Account
                         </Link>
                         <button
                           onClick={handleLogout}
-                          className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}
+                          className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}
                         >
                           Logout
                         </button>
@@ -114,26 +129,26 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
               {/* Founder Navigation - Only show if user is logged in */}
               {user && isFounder && (
                 <nav className="hidden md:flex items-center space-x-6">
-                  <Link to="/founder-dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
-                  <Link to="/help" className={`text-blue-600 font-medium transition-colors`}>Help</Link>
+                  <Link to="/founder-dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Dashboard</Link>
+                  <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
                   
                   {/* User Dropdown */}
                   <div className="relative">
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className={`flex items-center ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                      className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                     >
                       <User className="w-4 h-4 mr-1" />
                       User <ChevronDown className="w-4 h-4 ml-1" />
                     </button>
                     {showUserMenu && (
-                      <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                        <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                      <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                        <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                           Account
                         </Link>
                         <button
                           onClick={handleLogout}
-                          className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}
+                          className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}
                         >
                           Logout
                         </button>
@@ -184,12 +199,13 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
           </div>
         </div>
 
-        {(showUserMenu || showUtilitiesMenu) && (
-          <div
-            className="fixed inset-0 z-40"
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
+          <div 
+            className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}
@@ -261,7 +277,7 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                   <div className="flex-grow">
                     <h3 className="text-xl font-semibold mb-2">Set Your Investment Criteria</h3>
                     <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
-                      Navigate to <strong>Utilities → Investor Preferences</strong> to set your specific screening criteria. 
+                      Navigate to <strong>Preferences → Screening Criteria</strong> to set your specific screening criteria. 
                       Incoming proposals will be automatically screened based on your requirements including:
                     </p>
                     <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-1`}>
@@ -302,10 +318,11 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                     3
                   </div>
                   <div className="flex-grow">
-                    <h3 className="text-xl font-semibold mb-2">Detailed AI-Driven Analysis</h3>
+                    <h3 className="text-xl font-semibold mb-2">Detailed AI-Driven Analysis with Custom Algorithms</h3>
                     <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-3`}>
                       The AI analyzes companies using submitted documents, industry-specific context, and public information 
-                      (websites, publications, LinkedIn, etc.). Analysis is organized into four comprehensive categories:
+                      (websites, publications, LinkedIn, etc.). <strong className="text-blue-600 dark:text-blue-400">You can input your specific analysis algorithms 
+                      to make output reports tailored to your exact requirements.</strong> Analysis is organized into four comprehensive categories:
                     </p>
                     
                     <div className="space-y-3 ml-4">
@@ -429,6 +446,31 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
               </div>
             </div>
 
+            {/* Custom Analysis Algorithms Highlight */}
+            <div className={`${isDark ? 'bg-gradient-to-br from-gold-900/20 to-orange-900/20 border-gold-700' : 'bg-gradient-to-br from-gold-50 to-orange-50 border-gold-200'} rounded-lg shadow-lg border p-8 mb-8`}>
+              <h2 className="text-2xl font-bold mb-4 flex items-center text-gold-600 dark:text-gold-400">
+                <Settings className="w-6 h-6 mr-2" />
+                Custom Analysis Algorithms
+              </h2>
+              <p className={`${isDark ? 'text-silver-300' : 'text-navy-700'} mb-4 text-lg font-semibold`}>
+                Make output reports tailored to your exact requirements by inputting your specific analysis algorithms.
+              </p>
+              <p className={`${isDark ? 'text-silver-400' : 'text-navy-600'} mb-4`}>
+                Navigate to <strong>Preferences → Custom Analysis Prompts</strong> to input your specific analysis algorithms and criteria. 
+                This powerful feature allows you to customize how the AI evaluates ventures across all four categories (Product/Service, Market, Leadership Team, and Financials), 
+                ensuring that every generated report reflects your unique analysis methodology and investment requirements.
+              </p>
+              <div className={`${isDark ? 'bg-navy-800/50' : 'bg-white/50'} rounded-lg p-4 mt-4`}>
+                <p className={`${isDark ? 'text-silver-300' : 'text-navy-700'} font-semibold`}>
+                  ✓ Customize evaluation criteria for each analysis category<br />
+                  ✓ Input your specific analysis algorithms and frameworks<br />
+                  ✓ Make output reports specific to your exact requirements<br />
+                  ✓ Voice input support for quick customization<br />
+                  ✓ Custom prompts clearly marked with an asterisk (*) on analysis buttons
+                </p>
+              </div>
+            </div>
+
             {/* Comprehensive Analysis Framework */}
             <div className={`${isDark ? 'bg-gradient-to-br from-blue-900/30 to-purple-900/30 border-blue-700' : 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200'} rounded-lg shadow-lg border p-8 mb-8`}>
               <h2 className="text-2xl font-bold mb-4 flex items-center text-blue-600">
@@ -436,7 +478,8 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                 Four-Category Analysis Framework
               </h2>
               <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
-                Every venture analysis is organized into four comprehensive categories, with each category contributing to the overall evaluation score:
+                Every venture analysis is organized into four comprehensive categories, with each category contributing to the overall evaluation score. 
+                Customize each category with your specific analysis algorithms to make reports tailored to your exact requirements:
               </p>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className={`${isDark ? 'bg-gray-800/50' : 'bg-white'} rounded-lg p-4`}>
@@ -477,15 +520,19 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                 <div>
                   <h3 className="text-lg font-semibold mb-2 flex items-center">
                     <Settings className="w-5 h-5 mr-2 text-blue-500" />
-                    Custom Analysis Prompts
+                    Custom Analysis Algorithms
                   </h3>
                   <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mb-2`}>
-                    Navigate to <strong>Utilities → Investor Prompts</strong> to create personalized analysis prompts for Product, Market, Team, and Financial analysis. 
-                    Customize how the AI evaluates ventures based on your specific investment approach and criteria.
+                    Navigate to <strong>Preferences → Custom Analysis Prompts</strong> to input your specific analysis algorithms and criteria. 
+                    This powerful feature allows you to make output reports tailored to your exact requirements. Create personalized analysis prompts 
+                    for Product, Market, Team, and Financial evaluation based on your specific investment approach and methodology.
+                  </p>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm mb-2`}>
+                    <strong>Key Benefits:</strong> Customize how the AI evaluates ventures to match your unique analysis framework, ensuring reports 
+                    reflect your specific requirements and investment criteria. Custom prompts are clearly indicated with an asterisk (*) on the analysis buttons.
                   </p>
                   <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                    <strong>Voice Input:</strong> Use the microphone button next to each prompt field to speak your custom analysis criteria for quick customization. 
-                    Custom prompts are clearly indicated with an asterisk (*) on the analysis buttons in the Venture Detail screen.
+                    <strong>Voice Input:</strong> Use the microphone button next to each prompt field to speak your custom analysis algorithms for quick customization.
                   </p>
                 </div>
 

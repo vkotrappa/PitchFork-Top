@@ -165,7 +165,7 @@ Deno.serve(async (req: Request) => {
       console.log('Fetching Team-Analysis prompt...');
       const { data: promptData, error: promptError } = await supabaseAdmin
         .from('prompts')
-        .select('prompt_detail, preferred_llm')
+        .select('prompt_detail')
         .eq('prompt_name', 'Team-Analysis')
         .single();
 

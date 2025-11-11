@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Building2, Save, User, ChevronDown, Upload, FileText, X } from 'lucide-react';
+import { ArrowLeft, Building2, Save, User, ChevronDown, Upload, FileText, X, Sparkles } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
+import SectorTree from './SectorTree';
 
 interface EditCompanyProps {
   isDark: boolean;
@@ -28,6 +29,11 @@ interface Company {
   revenue?: string;
   valuation?: string;
   url?: string;
+  industry_sectors?: Array<{sector: string, sub_sector: string}>;
+  geography?: string;
+  investment_round?: number;
+  terms?: string;
+  extracted_text?: string;
 }
 
 const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
@@ -41,10 +47,13 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
   const [isLoadingCompany, setIsLoadingCompany] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractErrors, setExtractErrors] = useState<string[]>([]);
 
   // Check authentication and load company data
   useEffect(() => {
@@ -68,12 +77,30 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
       // Check if company data was passed via navigation state
       if (location.state?.company) {
         const companyData = location.state.company;
-        setCompany(companyData);
-        setFormData(companyData);
+        console.log('Company data received from navigation:', companyData);
+        
+        // Map company data to match EditCompany's expected structure
+        const mappedCompanyData = {
+          ...companyData,
+          // Map email_1 to email if email doesn't exist
+          email: companyData.email || companyData.email_1 || '',
+          // Map phone_1 to phone if phone doesn't exist
+          phone: companyData.phone || companyData.phone_1 || '',
+          // Map contact_name_1 to contact_name if contact_name doesn't exist
+          contact_name: companyData.contact_name || companyData.contact_name_1 || '',
+          // Map funding_terms to funding_terms (same name)
+          funding_terms: companyData.funding_terms || companyData.funding_sought || '',
+        };
+        
+        setCompany(mappedCompanyData);
+        setFormData(mappedCompanyData);
         setIsLoadingCompany(false);
 
-        // Load documents for this company
-        await loadDocuments(companyData.id);
+        // Load documents for this company (don't await - let it run in background)
+        loadDocuments(mappedCompanyData.id).catch(error => {
+          console.error('Error loading documents:', error);
+          // Don't fail the whole component if documents fail to load
+        });
       } else {
         // Load company data from database (for investors)
         await loadCompanyData();
@@ -125,6 +152,7 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
         setCompany(companyData);
         setFormData(companyData);
         await loadDocuments(companyData.id);
+      setExtractErrors([]);
       } else {
         // For investors, show message that no company was selected
         setMessage({ type: 'error', text: 'No company selected for editing' });
@@ -137,6 +165,62 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
       setIsLoadingCompany(false);
     }
   };
+  const handleExtractText = async () => {
+    if (!company) {
+      setMessage({ type: 'error', text: 'No company data available for extraction.' });
+      return;
+    }
+
+    try {
+      setIsExtracting(true);
+      setMessage(null);
+      setExtractErrors([]);
+
+      const { data, error } = await supabase.functions.invoke('extract-company-text', {
+        body: { company_id: company.id },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      const extractedText = typeof data?.extracted_text === 'string' ? data.extracted_text : '';
+
+      setCompany((prev) => (prev ? { ...prev, extracted_text: extractedText } : prev));
+
+      const responseMessage =
+        typeof data?.message === 'string' && data.message.length > 0
+          ? data.message
+          : 'Document text extracted successfully.';
+
+      setMessage({ type: 'success', text: responseMessage });
+
+      if (Array.isArray(data?.errors) && data.errors.length > 0) {
+        setExtractErrors(
+          data.errors
+            .map((item: any) => {
+              if (!item) return null;
+              const path = typeof item.path === 'string' ? item.path : 'Unknown file';
+              const details = typeof item.error === 'string' ? item.error : 'Unknown error';
+              return `${path}: ${details}`;
+            })
+            .filter(Boolean) as string[]
+        );
+      }
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to extract document text.',
+      });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
 
   const loadDocuments = async (companyId: string) => {
     try {
@@ -148,12 +232,14 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
 
       if (error) {
         console.error('Error loading documents:', error);
+        // Don't fail - just log the error
         return;
       }
 
       setDocuments(data || []);
     } catch (error) {
       console.error('Error loading documents:', error);
+      // Don't fail - just log the error
     }
   };
 
@@ -221,11 +307,19 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value ? parseFloat(value) : undefined
     }));
   };
 
@@ -268,6 +362,7 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
           // Redirect to investor selection for founders
           navigate('/investor-selection', { state: { companyId: company.id } });
         } else {
+          // Always redirect to dashboard for investors
           navigate('/dashboard');
         }
       }, 1500);
@@ -301,48 +396,66 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
   }
 
   return (
-    <div className={`min-h-screen font-arial transition-colors duration-300 ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`min-h-screen font-inter transition-colors duration-300 ${isDark ? 'bg-navy-950 text-silver-100' : 'bg-silver-50 text-navy-900'}`}>
       {/* Navigation */}
-      <nav className={`${isDark ? 'bg-gray-800/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+      <nav className={`${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
                 Pitch Fork
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               {/* Navigation Menu - Only show for investors */}
               {!isFounder && (
                 <nav className="hidden md:flex items-center space-x-6">
-                  <Link to="/dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
+                  <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Dashboard</Link>
 
-                  {/* Utilities Dropdown */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
-                      className={`flex items-center text-blue-600 font-medium transition-colors`}
-                    >
-                      Utilities <ChevronDown className="w-4 h-4 ml-1" />
-                    </button>
-                    {showUtilitiesMenu && (
-                      <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                        <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                          Investor Preferences
-                        </Link>
-                        <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                          Edit Prompts
-                        </Link>
-                        <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                          Investor Prompts
-                        </Link>
+                  {/* Preferences Dropdown - Only show for investors */}
+                  {!isFounder && (
+                    <>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
+                          className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                        >
+                          Preferences <ChevronDown className="w-4 h-4 ml-1" />
+                        </button>
+                        {showPreferencesMenu && (
+                          <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                            <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                              Screening Criteria
+                            </Link>
+                            <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                              Custom Analysis Prompts
+                            </Link>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                      
+                      {/* Admin Dropdown - Only show for investors */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowAdminMenu(!showAdminMenu)}
+                          className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                        >
+                          Admin <ChevronDown className="w-4 h-4 ml-1" />
+                        </button>
+                        {showAdminMenu && (
+                          <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                            <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                              Default Analysis Prompts
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
 
-                  <Link to="/help" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Help</Link>
+                  <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
 
                   {/* User Dropdown */}
                   <div className="relative">
@@ -413,12 +526,13 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
         </div>
         
         {/* Click outside handler for dropdowns */}
-        {(showUserMenu || showUtilitiesMenu) && (
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
           <div 
             className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}
@@ -677,6 +791,94 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
                     />
                   </div>
 
+                  {/* Matching Criteria Section */}
+                  <div className="md:col-span-2 pt-4 border-t border-gray-300 dark:border-gray-700">
+                    <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                      Matching Criteria
+                    </h3>
+                    <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      These fields help match your company with compatible investors
+                    </p>
+
+                    {/* Industry Sectors */}
+                    <div className="mb-4">
+                      <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                        Industry Sectors & Sub-Sectors
+                      </label>
+                      <p className={`text-xs mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Select one or more sectors and sub-sectors that match your company
+                      </p>
+                      <SectorTree
+                        selectedSectors={formData.industry_sectors || []}
+                        onChange={(selected) => setFormData(prev => ({ ...prev, industry_sectors: selected }))}
+                        isDark={isDark}
+                        multiSelect={true}
+                      />
+                    </div>
+
+                    {/* Geography */}
+                    <div className="mb-4">
+                      <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
+                        Geography
+                      </label>
+                      <select
+                        name="geography"
+                        value={formData.geography || 'US'}
+                        onChange={handleInputChange}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      >
+                        <option value="US">US</option>
+                        <option value="Europe">Europe</option>
+                        <option value="India">India</option>
+                      </select>
+                    </div>
+
+                    {/* Investment Round */}
+                    <div className="mb-4">
+                      <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
+                        Investment Round Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="investment_round"
+                        value={formData.investment_round || ''}
+                        onChange={handleNumberChange}
+                        placeholder="3000000"
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                        }`}
+                      />
+                      <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Enter amount in dollars (e.g., 3000000 for $3M)
+                      </p>
+                    </div>
+
+                    {/* Terms */}
+                    <div className="mb-4">
+                      <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
+                        Investment Terms
+                      </label>
+                      <textarea
+                        name="terms"
+                        value={formData.terms || ''}
+                        onChange={handleInputChange}
+                        placeholder="e.g., $2.5M SAFE at a 20% Discount and $16M Post Money Cap"
+                        rows={3}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
                   {/* Documents Section */}
                   <div className="md:col-span-2">
                     <h3 className="text-lg font-semibold mb-4 text-blue-600">Documents</h3>
@@ -784,7 +986,42 @@ const EditCompany: React.FC<EditCompanyProps> = ({ isDark, toggleTheme }) => {
                     <Save className="w-4 h-4 mr-2" />
                     {isLoading ? 'Submitting...' : 'Submit Company Information'}
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleExtractText}
+                    disabled={isExtracting || !company}
+                    className="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {isExtracting ? 'Extracting...' : 'Extract Text'}
+                  </button>
                 </div>
+                {extractErrors.length > 0 && (
+                  <div className="mt-4 p-4 rounded-lg border border-yellow-400 bg-yellow-50 text-yellow-800">
+                    <h4 className="font-semibold mb-2">Some documents could not be processed:</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {extractErrors.map((err, idx) => (
+                        <li key={idx}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {company?.extracted_text && company.extracted_text.trim().length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-2 text-blue-600">Extracted Text Preview</h3>
+                    <div
+                      className={`max-h-64 overflow-y-auto p-4 rounded-lg border text-sm ${
+                        isDark ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-gray-50 border-gray-200 text-gray-800'
+                      }`}
+                    >
+                      <pre className="whitespace-pre-wrap break-words">
+                        {company.extracted_text.substring(0, 5000)}
+                        {company.extracted_text.length > 5000 ? '…' : ''}
+                      </pre>
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
           </div>

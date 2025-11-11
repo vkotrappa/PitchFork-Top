@@ -23,7 +23,8 @@ const CompanyList: React.FC<CompanyListProps> = ({ isDark, toggleTheme }) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
@@ -71,59 +72,76 @@ const CompanyList: React.FC<CompanyListProps> = ({ isDark, toggleTheme }) => {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-      <nav className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b`}>
+    <div className={`min-h-screen font-inter transition-colors duration-300 ${isDark ? 'bg-navy-950 text-silver-100' : 'bg-silver-50 text-navy-900'}`}>
+      <nav className={`${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Building2 className="w-8 h-8 text-blue-600" />
-              <h1 className="text-xl font-bold text-blue-600">Investor Portal</h1>
+          <div className="flex items-center h-16">
+            <div className="flex items-center">
+              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
+                Pitch Fork
+              </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               <nav className="hidden md:flex items-center space-x-6">
-                <Link to="/dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
+                <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Dashboard</Link>
 
+                {/* Preferences Dropdown - Only show for investors */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
-                    className={`flex items-center text-blue-600 font-medium transition-colors`}
+                    onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                   >
-                    Utilities <ChevronDown className="w-4 h-4 ml-1" />
+                    Preferences <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
-                  {showUtilitiesMenu && (
-                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                      <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                  {showPreferencesMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                         Investor Preferences
                       </Link>
-                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                        Edit Prompts
+                      <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Custom Analysis Prompts
                       </Link>
-                      <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                        Investor Prompts
+                    </div>
+                  )}
+                </div>
+                
+                {/* Admin Dropdown - Only show for investors */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                  >
+                    Admin <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showAdminMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Default Analysis Prompts
                       </Link>
                     </div>
                   )}
                 </div>
 
-                <Link to="/help" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Help</Link>
+                <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
 
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className={`flex items-center ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                   >
                     <User className="w-4 h-4 mr-1" />
                     User <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {showUserMenu && (
-                    <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                      <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                    <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                         Account
                       </Link>
-                      <button
+                      <button 
                         onClick={handleLogout}
-                        className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}
+                        className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}
                       >
                         Logout
                       </button>
@@ -150,12 +168,13 @@ const CompanyList: React.FC<CompanyListProps> = ({ isDark, toggleTheme }) => {
           </div>
         </div>
 
-        {(showUserMenu || showUtilitiesMenu) && (
-          <div
-            className="fixed inset-0 z-40"
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
+          <div 
+            className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}

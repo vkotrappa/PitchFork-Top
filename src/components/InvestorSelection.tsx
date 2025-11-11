@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { CheckCircle2, Circle, Building2, Target, Mail } from 'lucide-react';
+import { CheckCircle2, Circle, Building2, Target, Mail, BarChart3 } from 'lucide-react';
+import {
+  calculateMatchScore,
+  CompanyRecord,
+  InvestorDetailRecord,
+  MatchResult,
+  formatLabel,
+} from './InvestorCompanyMatch';
 
-interface Investor {
+type InvestorRecord = InvestorDetailRecord & {
   user_id: string;
-  name: string;
-  email: string;
-  firm_name: string | null;
-  focus_areas: string | null;
-  comment: string | null;
+  email?: string;
+  firm_name?: string | null;
+  focus_areas?: string | null;
+  comment?: string | null;
+};
+
+interface InvestorMatch extends MatchResult {
+  investor: InvestorRecord;
 }
 
 interface InvestorSelectionProps {
@@ -18,62 +28,71 @@ interface InvestorSelectionProps {
 }
 
 export default function InvestorSelection({ companyId, onComplete, onCancel }: InvestorSelectionProps) {
-  const [investors, setInvestors] = useState<Investor[]>([]);
+  const [company, setCompany] = useState<CompanyRecord | null>(null);
+  const [investorMatches, setInvestorMatches] = useState<InvestorMatch[]>([]);
   const [selectedInvestors, setSelectedInvestors] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [companyName, setCompanyName] = useState<string>('');
 
   useEffect(() => {
-    loadInvestors();
-    loadCompanyName();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const [{ data: companyData, error: companyError }] = await Promise.all([
+          supabase.from('companies').select('*').eq('id', companyId).maybeSingle(),
+        ]);
+
+        if (companyError || !companyData) {
+          setMessage({ type: 'error', text: 'Unable to load company details.' });
+          setIsLoading(false);
+          return;
+        }
+
+        setCompany(companyData as CompanyRecord);
+
+        const { data: investorData, error: investorError } = await supabase
+          .from('investor_details')
+          .select(
+            'user_id, name, email, firm_name, focus_areas, comment, industry_sectors, geography, valuation_range, typical_check_size, ownership_leadership, minimum_arr, sector_min_arr, business_model'
+          )
+          .order('name');
+
+        if (investorError) {
+          throw investorError;
+        }
+
+        const matches = (investorData || []).map((record) => {
+          const investorRecord = record as InvestorRecord;
+          const result = calculateMatchScore(companyData as CompanyRecord, investorRecord);
+          return {
+            ...result,
+            investor: investorRecord,
+          };
+        });
+
+        setInvestorMatches(matches.sort((a, b) => b.score - a.score));
+      } catch (error) {
+        console.error('Error loading investors:', error);
+        setMessage({ type: 'error', text: 'Failed to load investors' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    load();
   }, [companyId]);
 
-  const loadInvestors = async () => {
-    try {
-      // Get all investor details - includes name, email, firm info
-      const { data: investorData, error: investorError } = await supabase
-        .from('investor_details')
-        .select('user_id, name, email, firm_name, focus_areas, comment')
-        .order('name');
-
-      if (investorError) throw investorError;
-
-      setInvestors(investorData || []);
-    } catch (error) {
-      console.error('Error loading investors:', error);
-      setMessage({ type: 'error', text: 'Failed to load investors' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadCompanyName = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('name')
-        .eq('id', companyId)
-        .single();
-
-      if (error) throw error;
-
-      setCompanyName(data?.name || '');
-    } catch (error) {
-      console.error('Error loading company name:', error);
-    }
-  };
-
   const toggleInvestor = (investorId: string) => {
-    const newSelected = new Set(selectedInvestors);
-    if (newSelected.has(investorId)) {
-      newSelected.delete(investorId);
-    } else {
-      newSelected.add(investorId);
-    }
-    setSelectedInvestors(newSelected);
+    setSelectedInvestors((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(investorId)) {
+        updated.delete(investorId);
+      } else {
+        updated.add(investorId);
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async () => {
@@ -86,16 +105,20 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
     setMessage(null);
 
     try {
-      // Step 1: Create analysis entries with 'submitted' status
-      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const analysisEntries = Array.from(selectedInvestors).map(investorUserId => ({
+      const currentDate = new Date().toISOString().split('T')[0];
+      const selectedMatches = investorMatches.filter((match) =>
+        selectedInvestors.has(match.investor.user_id)
+      );
+
+      const analysisEntries = selectedMatches.map((match) => ({
         company_id: companyId,
-        investor_user_id: investorUserId,
-        status: 'submitted',
-        history: `${currentDate}: Submitted`
+        investor_user_id: match.investor.user_id,
+        status: 'screened',
+        match_score: match.score,
+        history: `${currentDate}: Screened (matched by founder)`,
       }));
 
-      const { data: insertedAnalysis, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('analysis')
         .insert(analysisEntries)
         .select();
@@ -104,82 +127,7 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
 
       setMessage({
         type: 'success',
-        text: `Submitted to ${selectedInvestors.size} investor${selectedInvestors.size > 1 ? 's' : ''}. Running AI screening...`
-      });
-
-      // Step 2: Run AI screening for each investor
-      const screeningPromises = insertedAnalysis.map(async (analysis) => {
-        try {
-          const response = await supabase.functions.invoke('screen-investor-match', {
-            body: {
-              company_id: companyId,
-              investor_user_id: analysis.investor_user_id,
-              analysis_id: analysis.id
-            }
-          });
-
-          if (response.error) {
-            console.error(`Screening failed for investor ${analysis.investor_user_id}:`, response.error);
-          } else {
-            console.log(`Screening completed for investor ${analysis.investor_user_id}:`, response.data);
-          }
-        } catch (error) {
-          console.error(`Error screening investor ${analysis.investor_user_id}:`, error);
-          // Don't throw - continue with other investors
-        }
-      });
-
-      // Wait for all screening to complete (or fail)
-      await Promise.allSettled(screeningPromises);
-
-      // Send email notification to admin
-      try {
-        const selectedInvestorNames = investors
-          .filter(investor => selectedInvestors.has(investor.user_id))
-          .map(investor => investor.name)
-          .join(', ');
-
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
-        const functionUrl = `${supabaseUrl}/functions/v1/send-email`;
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session?.access_token) {
-          console.error('No valid session for email notification:', sessionError);
-        } else {
-          const emailResponse = await fetch(functionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              toEmail: 'vkotrappa@gmail.com',
-              toName: 'Admin',
-              subject: 'Pitchdeck Submitted',
-              body: `Thank you for submitting your pitchdeck. It was sent to: ${selectedInvestorNames}. We will get back to you when they evaluate and decide.
-
-Best regards,
-Admin@PitchFork.com`,
-              senderName: 'Admin@PitchFork.com',
-              companyName: companyName || 'Pitch Deck Submission',
-              messageType: 'admin'
-            })
-          });
-
-          if (!emailResponse.ok) {
-            console.error('Failed to send admin email notification:', await emailResponse.text());
-          } else {
-            console.log('Admin email notification sent successfully');
-          }
-        }
-      } catch (emailError) {
-        console.error('Error sending admin email notification:', emailError);
-        // Don't fail the whole operation if email fails
-      }
-
-      setMessage({
-        type: 'success',
-        text: `AI screening complete! Submitted to ${selectedInvestors.size} investor${selectedInvestors.size > 1 ? 's' : ''}`
+        text: `Submitted to ${selectedInvestors.size} investor${selectedInvestors.size > 1 ? 's' : ''}.`,
       });
 
       setTimeout(() => {
@@ -226,19 +174,19 @@ Admin@PitchFork.com`,
             </div>
 
             <div className="space-y-4">
-              {investors.map((investor) => (
+              {investorMatches.map((match) => (
                 <div
-                  key={investor.user_id}
-                  onClick={() => !isSubmitting && toggleInvestor(investor.user_id)}
+                  key={match.investor.user_id}
+                  onClick={() => !isSubmitting && toggleInvestor(match.investor.user_id)}
                   className={`border rounded-xl p-6 cursor-pointer transition-all ${
-                    selectedInvestors.has(investor.user_id)
+                    selectedInvestors.has(match.investor.user_id)
                       ? 'border-blue-500 bg-blue-50 shadow-md'
                       : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 mt-1">
-                      {selectedInvestors.has(investor.user_id) ? (
+                      {selectedInvestors.has(match.investor.user_id) ? (
                         <CheckCircle2 className="w-6 h-6 text-blue-600" />
                       ) : (
                         <Circle className="w-6 h-6 text-slate-300" />
@@ -246,34 +194,48 @@ Admin@PitchFork.com`,
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                        {investor.name}
-                      </h3>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {match.investor.name}
+                        </h3>
+                        <div className="flex items-center gap-2 text-blue-600 font-semibold">
+                          <BarChart3 className="w-4 h-4" />
+                          <span>{match.score.toFixed(1)} / 10</span>
+                        </div>
+                      </div>
 
-                      {investor.firm_name && (
+                      {match.investor.firm_name && (
                         <div className="flex items-center gap-2 text-slate-600 mb-2">
                           <Building2 className="w-4 h-4" />
-                          <span className="text-sm">{investor.firm_name}</span>
+                          <span className="text-sm">{match.investor.firm_name}</span>
                         </div>
                       )}
 
-                      {investor.focus_areas && (
+                      {match.investor.focus_areas && (
                         <div className="flex items-center gap-2 text-slate-600 mb-2">
                           <Target className="w-4 h-4" />
-                          <span className="text-sm">{investor.focus_areas}</span>
+                          <span className="text-sm">{match.investor.focus_areas}</span>
                         </div>
                       )}
 
-                      {investor.email && (
+                      {match.investor.email && (
                         <div className="flex items-center gap-2 text-slate-600 mb-2">
                           <Mail className="w-4 h-4" />
-                          <span className="text-sm">{investor.email}</span>
+                          <span className="text-sm">{match.investor.email}</span>
                         </div>
                       )}
 
-                      {investor.comment && (
+                      {match.summary.length > 0 && (
+                        <ul className="mt-3 text-sm text-slate-600 space-y-1">
+                          {match.summary.map((line, idx) => (
+                            <li key={idx}>• {line}</li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {match.investor.comment && (
                         <p className="text-sm text-slate-600 mt-3 leading-relaxed">
-                          {investor.comment}
+                          {match.investor.comment}
                         </p>
                       )}
                     </div>

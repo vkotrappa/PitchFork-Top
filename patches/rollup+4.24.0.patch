@@ -1,0 +1,44 @@
+diff --git a/node_modules/rollup/dist/native.js b/node_modules/rollup/dist/native.js
+index e0d54b8..d749a1a 100644
+--- a/node_modules/rollup/dist/native.js
++++ b/node_modules/rollup/dist/native.js
+@@ -40,6 +40,12 @@ const requireWithFriendlyError = id => {
+ 	try {
+ 		return require(id);
+ 	} catch (error) {
++		if (
++			error instanceof Error &&
++			error.code === 'ERR_DLOPEN_FAILED'
++		) {
++			return loadWasmFallback(error);
++		}
+ 		if (
+ 			platform === 'win32' &&
+ 			error instanceof Error &&
+@@ -65,8 +71,25 @@ const requireWithFriendlyError = id => {
+ 	}
+ };
+ 
++let wasmFallback;
++const loadWasmFallback = error => {
++	try {
++		if (!wasmFallback) {
++			wasmFallback = require('@rollup/wasm-node/dist/native.js');
++		}
++		return wasmFallback;
++	} catch (wasmError) {
++		if (wasmError instanceof Error && error instanceof Error) {
++			wasmError.cause ??= error;
++		}
++		throw wasmError;
++	}
++};
++
+ const { parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = requireWithFriendlyError(
+-	existsSync(path.join(__dirname, localName)) ? localName : `@rollup/rollup-${packageBase}`
++	existsSync(path.join(__dirname, localName))
++		? localName
++		: `@rollup/rollup-${packageBase}`
+ );
+ 
+ function getPackageBase() {

@@ -23,6 +23,7 @@ import Demo from './components/Demo';
 import Privacy from './components/Privacy';
 import Terms from './components/Terms';
 import Security from './components/Security';
+import CompanyInvestorMatch from './components/CompanyInvestorMatch';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function InvestorSelectionWrapper() {
@@ -264,13 +265,36 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
               <h2 className="text-2xl md:text-3xl font-inter font-bold mb-6 text-slate-900 dark:text-silver-100">
                 Screening and Comprehensive <span className="whitespace-nowrap">4-Category</span> Analysis in Minutes
               </h2>
-              <p className="text-lg mb-8 text-slate-600 dark:text-silver-300 leading-relaxed font-body">
-                AI analyzes ventures across Product/Service, Market, Leadership Team, and Financials using pitch decks, documents, and public data. 
-                Screen 10x more deals in 1/10th the time with automated filtering, detailed scoring, instant reports, and diligence questions—so you never miss a diamond.
+              <p className="text-lg mb-6 text-slate-600 dark:text-silver-300 leading-relaxed font-body">
+                Customizable AI analysis of Product, Market, Team, and Financials so you can evaluate 10x deals in 1/10th the time.
               </p>
-              <Link to="/login" className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg">
-                Login/Sign-Up <ChevronRight className="inline w-5 h-5 ml-2" />
-              </Link>
+              <p className="text-base mb-4 text-slate-600 dark:text-silver-300">
+                We are launching in phases. We welcome Investors and Founders to join us.{' '}
+                <a
+                  href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+                >
+                  Click here
+                </a>
+                :
+              </p>
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg"
+                >
+                  Join our List <ChevronRight className="inline w-5 h-5 ml-2" />
+                </a>
+                <img
+                  src="/PitchFork-QRCode.png"
+                  alt="Join PitchFork Interest List QR Code"
+                  className="w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                />
+              </div>
 
               {/* Social Proof */}
               <div className="mt-10">
@@ -625,6 +649,10 @@ function App() {
         <Route
           path="/security"
           element={<Security isDark={isDark} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/company-investor-match"
+          element={<CompanyInvestorMatch isDark={isDark} toggleTheme={toggleTheme} />}
         />
       </Routes>
     </Router>

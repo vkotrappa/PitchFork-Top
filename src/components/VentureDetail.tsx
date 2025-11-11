@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, MessageCircle, Send, Download, BarChart3, Users, Trash2, Eye, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, ChevronUp, MessageCircle, Send, Download, BarChart3, Users, Trash2, Eye, X, Loader2, Pencil } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
 
 interface VentureDetailProps {
@@ -28,6 +28,10 @@ interface Company {
   revenue?: string;
   valuation?: string;
   url?: string;
+  industry_sectors?: Array<{sector: string, sub_sector: string}>;
+  geography?: string;
+  investment_round?: number;
+  terms?: string;
 }
 
 interface Analysis {
@@ -44,6 +48,18 @@ interface Analysis {
     name: string;
     firm_name?: string;
   };
+  scorecard_summary?: ScorecardSummaryData | null;
+}
+
+interface ScorecardSectionData {
+  score?: number;
+  summary?: string;
+  details?: string[];
+}
+
+interface ScorecardSummaryData {
+  summary?: string;
+  sections?: Record<string, ScorecardSectionData>;
 }
 
 interface AnalysisReport {
@@ -52,6 +68,12 @@ interface AnalysisReport {
   file_name: string;
   file_path: string;
   generated_at: string;
+  product_score?: string;
+  market_score?: string;
+  team_score?: string;
+  financials_score?: string;
+  valuation_score?: string;
+  score_card?: string;
 }
 
 interface Document {
@@ -72,7 +94,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showMessageForm, setShowMessageForm] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
@@ -84,11 +107,15 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isAnalyzingProduct, setIsAnalyzingProduct] = useState(false);
   const [isAnalyzingMarket, setIsAnalyzingMarket] = useState(false);
   const [isAnalyzingFinancials, setIsAnalyzingFinancials] = useState(false);
+  const [isAnalyzingValuation, setIsAnalyzingValuation] = useState(false);
   const [isCreatingScoreCard, setIsCreatingScoreCard] = useState(false);
   const [isCreatingDetailReport, setIsCreatingDetailReport] = useState(false);
   const [isCreatingDiligenceQuestions, setIsCreatingDiligenceQuestions] = useState(false);
   const [isCreatingFounderReport, setIsCreatingFounderReport] = useState(false);
-  const [isTestingTeamAnalysis, setIsTestingTeamAnalysis] = useState(false);
+  const [isCreatingDetailReportText, setIsCreatingDetailReportText] = useState(false);
+  const [detailReportText, setDetailReportText] = useState<string | null>(null);
+  const [detailReportTextUrl, setDetailReportTextUrl] = useState<string | null>(null);
+  const [activeScorecardTab, setActiveScorecardTab] = useState<string>('Summary');
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>('');
@@ -96,6 +123,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [customPrompts, setCustomPrompts] = useState<Set<string>>(new Set());
+  const [expandedScorecards, setExpandedScorecards] = useState<Set<string>>(new Set());
+  const [scorecardHtmlContent, setScorecardHtmlContent] = useState<Record<string, string>>({});
 
   // Check authentication and load company data
   useEffect(() => {
@@ -118,6 +147,12 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
     
     checkAuthAndLoadData();
   }, [navigate, id]);
+
+  useEffect(() => {
+    if (analysis.length > 0 && analysis[0].scorecard_summary) {
+      setActiveScorecardTab('Summary');
+    }
+  }, [analysis]);
 
   const loadCompanyData = async (companyId: string) => {
     try {
@@ -799,8 +834,206 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
     }
   };
 
+  // Helper function to parse scorecard text format
+  // Expected format:
+  // First line: "8.5/10: Product"
+  // Subsequent lines: "8.1: Product-Market Fit", "9.1: IP/Defensibility"
+  const parseScoreCard = (scoreText: string): { title: string; overallScore: string; categories: Array<{ name: string; score: string }> } | null => {
+    if (!scoreText || !scoreText.trim()) {
+      return null;
+    }
+    
+    try {
+      const lines = scoreText.split('\n').filter(line => line.trim());
+      if (lines.length === 0) {
+        return null;
+      }
+      
+      // First line should be "8.5/10: Product" format
+      const firstLine = lines[0].trim();
+      const headerMatch = firstLine.match(/^(\d+\.?\d*)\/10:\s*(.+)$/);
+      
+      if (!headerMatch) {
+        // Try alternative format: "8.5: Product" (without /10)
+        const altMatch = firstLine.match(/^(\d+\.?\d*):\s*(.+)$/);
+        if (!altMatch) {
+          return null;
+        }
+        
+        const overallScore = altMatch[1].trim();
+        const title = altMatch[2].trim();
+        
+        // Remaining lines should be "8.1: Category Name" format
+        const categories: Array<{ name: string; score: string }> = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          const categoryMatch = line.match(/^(\d+\.?\d*):\s*(.+)$/);
+          if (categoryMatch) {
+            categories.push({
+              name: categoryMatch[2].trim(),
+              score: categoryMatch[1].trim()
+            });
+          }
+        }
+        
+        return {
+          title: title,
+          overallScore: overallScore,
+          categories: categories
+        };
+      }
+      
+      const overallScore = headerMatch[1].trim();
+      const title = headerMatch[2].trim();
+      
+      // Remaining lines should be "8.1: Category Name" format
+      const categories: Array<{ name: string; score: string }> = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        const categoryMatch = line.match(/^(\d+\.?\d*):\s*(.+)$/);
+        if (categoryMatch) {
+          categories.push({
+            name: categoryMatch[2].trim(),
+            score: categoryMatch[1].trim()
+          });
+        }
+      }
+      
+      return {
+        title: title,
+        overallScore: overallScore,
+        categories: categories
+      };
+    } catch (error) {
+      console.error('Error parsing scorecard:', error);
+      return null;
+    }
+  };
+
+  // Helper function to get scorecard data for a report type
+  const getScoreCardData = (reportType: string) => {
+    // Find the report that matches this type
+    const report = analysisReports.find(r => r.report_type === reportType);
+    if (!report) {
+      return null;
+    }
+    
+    // Check if score_card field exists and is not blank
+    if (!report.score_card || report.score_card.trim().length === 0) {
+      return null;
+    }
+    
+    // Check if file_path exists (indicating the report file should exist)
+    if (!report.file_path || report.file_path.trim().length === 0) {
+      return null;
+    }
+    
+    // Use score_card field (new centralized approach)
+    return parseScoreCard(report.score_card);
+  };
+
+  // Helper function to fetch scorecard HTML content from PDF
+  const fetchScorecardHtml = async (report: AnalysisReport) => {
+    if (!report.file_path) return null;
+    
+    try {
+      // Get public URL for the PDF
+      const { data: urlData } = supabase.storage
+        .from('analysis-output-docs')
+        .getPublicUrl(report.file_path);
+      
+      if (!urlData?.publicUrl) return null;
+      
+      // Fetch the PDF and convert to blob URL for iframe display
+      const response = await fetch(urlData.publicUrl);
+      if (!response.ok) return null;
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      return blobUrl;
+    } catch (error) {
+      console.error('Error fetching scorecard PDF:', error);
+      return null;
+    }
+  };
+
+  // Toggle scorecard expansion
+  const toggleScorecardExpansion = async (reportId: string, report: AnalysisReport) => {
+    const isExpanded = expandedScorecards.has(reportId);
+    
+    if (isExpanded) {
+      // Collapse
+      setExpandedScorecards(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reportId);
+        return newSet;
+      });
+      // Clean up blob URL if exists
+      if (scorecardHtmlContent[reportId]) {
+        URL.revokeObjectURL(scorecardHtmlContent[reportId]);
+        setScorecardHtmlContent(prev => {
+          const newContent = { ...prev };
+          delete newContent[reportId];
+          return newContent;
+        });
+      }
+    } else {
+      // Expand - fetch HTML content
+      setExpandedScorecards(prev => new Set(prev).add(reportId));
+      const htmlUrl = await fetchScorecardHtml(report);
+      if (htmlUrl) {
+        setScorecardHtmlContent(prev => ({ ...prev, [reportId]: htmlUrl }));
+      }
+    }
+  };
+
+  // Helper function to get scorecard display name
+  const getScorecardDisplayName = (reportType: string) => {
+    if (reportType === 'scorecard' || reportType === 'scorecard-analysis') {
+      return '📊 Score Card';
+    }
+    return reportType.replace(/-/g, ' ');
+  };
+
+  const getAnalysisFunctionUrl = async (baseFunctionName: string = 'analyze-company'): Promise<string> => {
+    try {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        // Default to OpenAI if no user
+        return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${baseFunctionName}`;
+      }
+
+      // Check LLM preference
+      const { data: llmPreference, error } = await supabase
+        .from('llm_preferences')
+        .select('preferred_llm')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching LLM preference:', error);
+        // Default to OpenAI on error
+        return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${baseFunctionName}`;
+      }
+
+      const preferredLlm = llmPreference?.preferred_llm || 'OpenAI';
+      console.log(`User LLM preference: ${preferredLlm}`);
+
+      if (preferredLlm === 'Claude' && baseFunctionName === 'analyze-company') {
+        return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-claude`;
+      }
+
+      return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${baseFunctionName}`;
+    } catch (error) {
+      console.error('Error getting analysis function URL:', error);
+      // Default to OpenAI on error
+      return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${baseFunctionName}`;
+    }
+  };
+
   // Generic analysis handler for all analysis types
-  const handleAnalysis = async (analysisType: 'team' | 'product' | 'market' | 'financial') => {
+  const handleAnalysis = async (analysisType: 'team' | 'product' | 'market' | 'financial' | 'valuation') => {
     if (!company) {
       setMessageStatus({ type: 'error', text: 'Company information not available' });
       return;
@@ -811,6 +1044,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       product: { setLoading: setIsAnalyzingProduct, promptName: 'Product-Analysis', label: 'Product', historyLabel: 'Analyze-Product' },
       market: { setLoading: setIsAnalyzingMarket, promptName: 'Market-Analysis', label: 'Market', historyLabel: 'Analyze-Market' },
       financial: { setLoading: setIsAnalyzingFinancials, promptName: 'Financial-Analysis', label: 'Financial', historyLabel: 'Analyze-Financials' },
+      valuation: { setLoading: setIsAnalyzingValuation, promptName: 'Valuation-Analysis', label: 'Valuation', historyLabel: 'Analyze-Valuation' },
     };
 
     const config = typeConfig[analysisType];
@@ -849,79 +1083,104 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         analysisId = newAnalysis.id;
       }
 
-      // Get the prompt from prompts table
-      const { data: promptData, error: promptError } = await supabase
-        .from('prompts')
-        .select('prompt_detail')
-        .eq('prompt_name', config.promptName)
-        .single();
+      let requestBody: any;
 
-      if (promptError) {
-        console.error(`Error fetching ${config.promptName} prompt:`, promptError);
-        setMessageStatus({ type: 'error', text: `${config.promptName} prompt not found in database. Please add it to the prompts table.` });
-        config.setLoading(false);
-        return;
-      }
+      // For valuation analysis, use the most recent analysis reports instead of documents
+      if (analysisType === 'valuation') {
+        // Fetch the most recent analysis report from each category
+        const reportTypes = ['product-analysis', 'market-analysis', 'team-analysis', 'financial-analysis'];
+        const recentAnalysisReports: Array<{ id: string; report_type: string; file_path: string; generated_at: string; }> = [];
 
-      if (!promptData || !promptData.prompt_detail) {
-        console.error('Prompt data is empty');
-        setMessageStatus({ type: 'error', text: `${config.promptName} prompt is empty` });
-        config.setLoading(false);
-        return;
-      }
+        for (const reportType of reportTypes) {
+          const { data: report, error } = await supabase
+            .from('analysis_reports')
+            .select('id, report_type, file_path, generated_at')
+            .eq('analysis_id', analysisId)
+            .eq('report_type', reportType)
+            .not('file_path', 'is', null)
+            .neq('file_path', '')
+            .order('generated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-      console.log('Found prompt, length:', promptData.prompt_detail.length);
+          if (error) {
+            console.error(`Error fetching ${reportType}:`, error);
+          } else if (report && report.file_path) {
+            recentAnalysisReports.push({
+              id: report.id,
+              report_type: report.report_type,
+              file_path: report.file_path,
+              generated_at: report.generated_at
+            });
+          }
+        }
 
-      // Get company documents
-      const { data: documentsData, error: documentsError } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('company_id', company.id);
+        if (recentAnalysisReports.length === 0) {
+          setMessageStatus({ type: 'error', text: 'No analysis reports available. Please run at least one analysis (Product, Market, Team, or Financial) first.' });
+          config.setLoading(false);
+          return;
+        }
 
-      if (documentsError) {
-        console.error('Error fetching company documents:', documentsError);
-        setMessageStatus({ type: 'error', text: 'Failed to fetch company documents' });
-        config.setLoading(false);
-        return;
-      }
+        console.log('Most recent analysis reports fetched for valuation:', recentAnalysisReports);
 
-      if (!documentsData || documentsData.length === 0) {
-        setMessageStatus({ type: 'error', text: `No documents found for ${config.label.toLowerCase()} analysis` });
-        config.setLoading(false);
-        return;
-      }
+        requestBody = {
+          companyId: company.id,
+          companyName: company.name,
+          analysisId: analysisId,
+          analysisType: analysisType,
+          analysisReports: recentAnalysisReports,
+          documents: [] // Explicitly set to empty array for valuation
+        };
+      } else {
+        // For other analysis types, use company documents
+        const { data: documentsData, error: documentsError } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('company_id', company.id);
 
-      console.log('Documents to analyze:', documentsData.map(doc => ({
-        id: doc.id,
-        name: doc.document_name,
-        path: doc.path
-      })));
+        if (documentsError) {
+          console.error('Error fetching company documents:', documentsError);
+          setMessageStatus({ type: 'error', text: 'Failed to fetch company documents' });
+          config.setLoading(false);
+          return;
+        }
 
-      // Call the generic analyze-company function
-      const requestBody = {
-        companyId: company.id,
-        companyName: company.name,
-        analysisId: analysisId,
-        analysisType: analysisType,
-        prompt: promptData.prompt_detail,
-        documents: documentsData.map(doc => ({
+        if (!documentsData || documentsData.length === 0) {
+          setMessageStatus({ type: 'error', text: `No documents found for ${config.label.toLowerCase()} analysis` });
+          config.setLoading(false);
+          return;
+        }
+
+        console.log('Documents to analyze:', documentsData.map(doc => ({
           id: doc.id,
           name: doc.document_name,
           path: doc.path
-        }))
-      };
+        })));
+
+        requestBody = {
+          companyId: company.id,
+          companyName: company.name,
+          analysisId: analysisId,
+          analysisType: analysisType,
+          documents: documentsData.map(doc => ({
+            id: doc.id,
+            name: doc.document_name,
+            path: doc.path
+          }))
+        };
+      }
       
-      console.log('Calling analyze-company function with:', {
+      console.log('Calling analyze-company-background function with:', {
         companyId: requestBody.companyId,
         companyName: requestBody.companyName,
         analysisId: requestBody.analysisId,
         analysisType: requestBody.analysisType,
-        promptLength: requestBody.prompt?.length,
-        documentsCount: requestBody.documents.length,
+        documentsCount: requestBody.documents?.length || 0,
+        analysisReportsCount: requestBody.analysisReports?.length || 0,
       });
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
-      const functionUrl = `${supabaseUrl}/functions/v1/analyze-company-background`;
+      // Always call analyze-company-background - it handles LLM routing internally
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-background`;
       const session = await supabase.auth.getSession();
       
       console.log('Starting background analysis:', functionUrl);
@@ -1064,123 +1323,18 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const handleAnalyzeProduct = () => handleAnalysis('product');
   const handleAnalyzeMarket = () => handleAnalysis('market');
   const handleAnalyzeFinancials = () => handleAnalysis('financial');
+  const handleAnalyzeValuation = () => handleAnalysis('valuation');
 
-  const handleTeamAnalysisTest = async () => {
-    if (!company || !id) {
-      alert('Company information not available');
-      return;
-    }
-
-    setIsTestingTeamAnalysis(true);
-    try {
-      console.log('Testing team analysis (HTML) for company:', company.name);
-
-      // Get current user
-      const currentUser = await getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get analysis ID
-      let analysisId = analysis.length > 0 ? analysis[0].id : '';
-
-      // Get company documents
-      const { data: documentsData, error: documentsError } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('company_id', company.id);
-
-      if (documentsError) {
-        console.error('Error fetching company documents:', documentsError);
-        setMessageStatus({ type: 'error', text: 'Failed to fetch company documents' });
-        return;
-      }
-
-      if (!documentsData || documentsData.length === 0) {
-        setMessageStatus({ type: 'error', text: 'No documents found for team analysis' });
-        return;
-      }
-
-      // Call the analyze-company-html edge function
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-html`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            companyId: id,
-            companyName: company.name,
-            analysisId: analysisId,
-            analysisType: 'team',
-            documents: documentsData.map(doc => ({
-              id: doc.id,
-              name: doc.document_name,
-              path: doc.path
-            }))
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to run team analysis test';
-        try {
-          const errorData = await response.json();
-          console.error('Error response from function:', errorData);
-          errorMessage = errorData.error || errorMessage;
-          if (errorData.details) {
-            errorMessage += ` - ${errorData.details}`;
-          }
-          if (errorData.statusText) {
-            errorMessage += ` (${errorData.statusText})`;
-          }
-        } catch (e) {
-          const errorText = await response.text();
-          console.error('Error response text:', errorText);
-          errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      console.log('Team analysis test completed:', result);
-
-      // Reload the analysis reports to show the new report
-      await loadAnalysisReports(id);
-      
-      setMessageStatus({ type: 'success', text: 'Team analysis test completed successfully!' });
-      
-      // Auto-hide success message after 5 seconds
-      setTimeout(() => {
-        setMessageStatus(null);
-      }, 5000);
-    } catch (error) {
-      console.error('Error running team analysis test:', error);
-      setMessageStatus({ type: 'error', text: `Failed to run team analysis test: ${error instanceof Error ? error.message : 'Unknown error'}` });
-    } finally {
-      setIsTestingTeamAnalysis(false);
-    }
-  };
 
   const handleCreateScoreCard = async () => {
     if (!company || !id) {
-      alert('Company information not available');
-      return;
-    }
-
-    if (analysisReports.length === 0) {
-      alert('No analysis reports available. Please run at least one analysis first.');
+      setMessageStatus({ type: 'error', text: 'Company information not available' });
       return;
     }
 
     setIsCreatingScoreCard(true);
+    setMessageStatus({ type: 'success', text: 'Starting score card creation...' });
+    
     try {
       console.log('Creating score card for company:', company.name);
 
@@ -1193,26 +1347,54 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       // Get analysis ID
       let analysisId = analysis.length > 0 ? analysis[0].id : '';
 
-      // Prepare existing reports summary for the AI
-      const reportsSummary = analysisReports
-        .filter(report => report.report_path) // Filter out reports with missing paths
-        .map(report => ({
-          type: report.report_type,
-          path: report.report_path,
-          generated_at: report.generated_at
-        }));
+      // Fetch the most recent analysis report from each category
+      const reportTypes = ['product-analysis', 'market-analysis', 'team-analysis', 'financial-analysis'];
+      const recentAnalysisReports: Array<{ id: string; report_type: string; file_path: string; generated_at: string; }> = [];
 
-      console.log('Existing reports:', reportsSummary);
-      console.log('Filtered reports count:', reportsSummary.length, 'out of', analysisReports.length);
+      for (const reportType of reportTypes) {
+        const { data: report, error } = await supabase
+          .from('analysis_reports')
+          .select('id, report_type, file_path, generated_at')
+          .eq('analysis_id', analysisId)
+          .eq('report_type', reportType)
+          .not('file_path', 'is', null)
+          .neq('file_path', '')
+          .order('generated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      // Call the analyze-company edge function with scorecard type
+        if (error) {
+          console.error(`Error fetching ${reportType}:`, error);
+        } else if (report && report.file_path) {
+          recentAnalysisReports.push({
+            id: report.id,
+            report_type: report.report_type,
+            file_path: report.file_path,
+            generated_at: report.generated_at
+          });
+        }
+      }
+
+      if (recentAnalysisReports.length === 0) {
+        setMessageStatus({ type: 'error', text: 'No analysis reports available. Please run at least one analysis (Product, Market, Team, or Financial) first.' });
+        setIsCreatingScoreCard(false);
+        return;
+      }
+
+      console.log('Most recent analysis reports fetched:', recentAnalysisReports);
+
+      // Call the analyze-company-background function with scorecard type
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
       }
 
+      // Use background function to avoid timeout issues
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-background`;
+      console.log('Calling background analysis function for scorecard:', functionUrl);
+
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company`,
+        functionUrl,
         {
           method: 'POST',
           headers: {
@@ -1224,12 +1406,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             companyName: company.name,
             analysisId: analysisId,
             analysisType: 'scorecard',
-            documents: documents.map(doc => ({
-              id: doc.id,
-              name: doc.name,
-              path: doc.path
-            })),
-            existingReports: reportsSummary
+            analysisReports: recentAnalysisReports
           }),
         }
       );
@@ -1247,15 +1424,18 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       }
 
       const result = await response.json();
-      console.log('Score card created:', result);
+      console.log('Score card creation initiated:', result);
 
-      // Reload the analysis reports to show the new score card
-      await loadAnalysisReports(id);
+      // Background function returns immediately, report will be generated asynchronously
+      // Reload the analysis reports after a short delay to show the new score card
+      setTimeout(async () => {
+        await loadAnalysisReports(id);
+      }, 2000);
       
-      alert('Score card created successfully!');
+      setMessageStatus({ type: 'success', text: 'Score card creation started! The report will be generated in the background. Please refresh the page in a few moments to see the new report.' });
     } catch (error) {
       console.error('Error creating score card:', error);
-      alert(`Failed to create score card: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setMessageStatus({ type: 'error', text: `Failed to create score card: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setIsCreatingScoreCard(false);
     }
@@ -1267,8 +1447,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       return;
     }
 
-    if (analysisReports.length === 0) {
-      alert('No analysis reports available. Please run at least one analysis first.');
+    if (documents.length === 0) {
+      alert('No documents uploaded. Please upload at least one document first.');
       return;
     }
 
@@ -1285,27 +1465,21 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       // Get analysis ID
       let analysisId = analysis.length > 0 ? analysis[0].id : '';
 
-      // Prepare existing reports summary for the AI
-      const reportsSummary = analysisReports
-        .filter(report => report.report_path) // Filter out reports with missing paths
-        .map(report => ({
-          type: report.report_type || 'unknown',
-          path: report.report_path,
-          generated_at: report.generated_at || new Date().toISOString()
-        }));
+      console.log('Documents for detail report:', documents);
 
-      console.log('Existing reports for detail compilation:', reportsSummary);
-      console.log('Filtered reports count:', reportsSummary.length, 'out of', analysisReports.length);
-      console.log('Documents for detail compilation:', documents);
-
-      // Call the analyze-company edge function with detail-report type
+      // Call the analyze-company-background function with detail-report type
+      // This routes through background processing to avoid timeouts
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
       }
 
+      // Use background function to avoid timeout issues
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-background`;
+      console.log('Calling background analysis function:', functionUrl);
+
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company`,
+        functionUrl,
         {
           method: 'POST',
           headers: {
@@ -1319,10 +1493,9 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             analysisType: 'detail-report',
             documents: documents.map(doc => ({
               id: doc.id || '',
-              name: doc.name || '',
+              name: doc.document_name || '',
               path: doc.path || ''
-            })),
-            existingReports: reportsSummary
+            }))
           }),
         }
       );
@@ -1340,17 +1513,53 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       }
 
       const result = await response.json();
-      console.log('Detail report created:', result);
+      console.log('Detail report creation initiated:', result);
 
-      // Reload the analysis reports to show the new detail report
-      await loadAnalysisReports(id);
+      // Background function returns immediately, report will be generated asynchronously
+      // Reload the analysis reports after a short delay to show the new detail report
+      setTimeout(async () => {
+        await loadAnalysisReports(id);
+      }, 2000);
       
-      alert('Detail report created successfully!');
+      alert('Detail report creation started! The report will be generated in the background. Please refresh the page in a few moments to see the new report.');
     } catch (error) {
       console.error('Error creating detail report:', error);
       alert(`Failed to create detail report: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsCreatingDetailReport(false);
+    }
+  };
+
+  const handleCreateDetailReportText = async () => {
+    if (!company || !id) {
+      setMessageStatus({ type: 'error', text: 'Company information not available' });
+      return;
+    }
+    setIsCreatingDetailReportText(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('detail-report-text', {
+        body: { company_id: id },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data || !data.report_text) {
+        throw new Error('Detail report text was not generated.');
+      }
+
+      setDetailReportText(data.report_text as string);
+      setDetailReportTextUrl(data.report?.download_url ?? null);
+      setMessageStatus({ type: 'success', text: 'Detail report text generated successfully. Download link is ready below.' });
+    } catch (error) {
+      console.error('Error generating detail report text:', error);
+      setMessageStatus({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to generate detail report text.',
+      });
+    } finally {
+      setIsCreatingDetailReportText(false);
     }
   };
 
@@ -1380,10 +1589,10 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
       // Prepare existing reports summary for the AI
       const reportsSummary = analysisReports
-        .filter(report => report.report_path) // Filter out reports with missing paths
+        .filter(report => report.file_path) // Filter out reports with missing paths
         .map(report => ({
           type: report.report_type,
-          path: report.report_path,
+          path: report.file_path,
           generated_at: report.generated_at
         }));
 
@@ -1396,8 +1605,12 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         throw new Error('No active session');
       }
 
+      // Get function URL based on LLM preference
+      const functionUrl = await getAnalysisFunctionUrl('analyze-company');
+      console.log('Calling analysis function:', functionUrl);
+
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company`,
+        functionUrl,
         {
           method: 'POST',
           headers: {
@@ -1448,16 +1661,18 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
   const handleCreateFounderReport = async () => {
     if (!company || !id) {
-      alert('Company information not available');
+      setMessageStatus({ type: 'error', text: 'Company information not available' });
       return;
     }
 
     if (analysisReports.length === 0) {
-      alert('No analysis reports available. Please run at least one analysis first.');
+      setMessageStatus({ type: 'error', text: 'No analysis reports available. Please run at least one analysis first.' });
       return;
     }
 
     setIsCreatingFounderReport(true);
+    setMessageStatus({ type: 'success', text: 'Starting founder report creation...' });
+    
     try {
       console.log('Creating founder report for company:', company.name);
 
@@ -1470,26 +1685,37 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       // Get analysis ID
       let analysisId = analysis.length > 0 ? analysis[0].id : '';
 
-      // Prepare existing reports summary for the AI
+      // Prepare analysis reports for the AI
       const reportsSummary = analysisReports
-        .filter(report => report.report_path) // Filter out reports with missing paths
+        .filter(report => report.file_path) // Filter out reports with missing paths
         .map(report => ({
-          type: report.report_type,
-          path: report.report_path,
+          id: report.id,
+          report_type: report.report_type,
+          file_path: report.file_path,
           generated_at: report.generated_at
         }));
 
-      console.log('Existing reports for founder feedback:', reportsSummary);
+      console.log('Analysis reports for founder report:', reportsSummary);
       console.log('Filtered reports count:', reportsSummary.length, 'out of', analysisReports.length);
 
-      // Call the analyze-company edge function with founder-report type
+      if (reportsSummary.length === 0) {
+        setMessageStatus({ type: 'error', text: 'No valid analysis reports available. Please run at least one analysis first.' });
+        setIsCreatingFounderReport(false);
+        return;
+      }
+
+      // Call the analyze-company-background function with founder-report type
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
       }
 
+      // Use background function to avoid timeout issues
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-background`;
+      console.log('Calling background analysis function for founder report:', functionUrl);
+
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company`,
+        functionUrl,
         {
           method: 'POST',
           headers: {
@@ -1501,12 +1727,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             companyName: company.name,
             analysisId: analysisId,
             analysisType: 'founder-report',
-            documents: documents.map(doc => ({
-              id: doc.id,
-              name: doc.name,
-              path: doc.path
-            })),
-            existingReports: reportsSummary
+            analysisReports: reportsSummary
           }),
         }
       );
@@ -1524,15 +1745,18 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
       }
 
       const result = await response.json();
-      console.log('Founder report created:', result);
+      console.log('Founder report creation initiated:', result);
 
-      // Reload the analysis reports to show the new founder report
-      await loadAnalysisReports(id);
+      // Background function returns immediately, report will be generated asynchronously
+      // Reload the analysis reports after a short delay to show the new founder report
+      setTimeout(async () => {
+        await loadAnalysisReports(id);
+      }, 2000);
       
-      alert('Founder report created successfully!');
+      setMessageStatus({ type: 'success', text: 'Founder report creation started! The report will be generated in the background. Please refresh the page in a few moments to see the new report.' });
     } catch (error) {
       console.error('Error creating founder report:', error);
-      alert(`Failed to create founder report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setMessageStatus({ type: 'error', text: `Failed to create founder report: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setIsCreatingFounderReport(false);
     }
@@ -1809,65 +2033,79 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   }
 
   return (
-    <div className={`min-h-screen font-arial transition-colors duration-300 ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`min-h-screen font-inter transition-colors duration-300 ${isDark ? 'bg-navy-950 text-silver-100' : 'bg-silver-50 text-navy-900'}`}>
       {/* Navigation */}
-      <nav className={`${isDark ? 'bg-gray-800/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+      <nav className={`${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
                 Pitch Fork
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               {/* Navigation Menu */}
               <nav className="hidden md:flex items-center space-x-6">
-                <Link to="/dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Dashboard</Link>
+                <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Dashboard</Link>
                 
-                {/* Utilities Dropdown */}
+                {/* Preferences Dropdown */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
-                    className={`flex items-center ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                    onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                   >
-                    Utilities <ChevronDown className="w-4 h-4 ml-1" />
+                    Preferences <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
-                  {showUtilitiesMenu && (
-                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                      <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                  {showPreferencesMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                         Investor Preferences
                       </Link>
-                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                        Edit Prompts
-                      </Link>
-                      <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
-                        Investor Prompts
+                      <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Custom Analysis Prompts
                       </Link>
                     </div>
                   )}
                 </div>
                 
-                <Link to="/help" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}>Help</Link>
+                {/* Admin Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                  >
+                    Admin <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showAdminMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Default Analysis Prompts
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                
+                <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Help</Link>
                 
                 {/* User Dropdown */}
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className={`flex items-center ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                   >
                     <User className="w-4 h-4 mr-1" />
                     User <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {showUserMenu && (
-                    <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} z-50`}>
-                      <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}>
+                    <div className={`absolute top-full right-0 mt-2 w-32 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/account" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                         Account
                       </Link>
                       <button 
                         onClick={handleLogout}
-                        className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'} transition-colors`}
+                        className={`w-full text-left px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}
                       >
                         Logout
                       </button>
@@ -1878,7 +2116,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
               
               <button
                 onClick={toggleTheme}
-                className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+                className={`p-2 rounded-lg ${isDark ? 'bg-navy-800 hover:bg-navy-700' : 'bg-silver-100 hover:bg-silver-200'} transition-colors shadow-sm`}
               >
                 {isDark ? '☀️' : '🌙'}
               </button>
@@ -1886,7 +2124,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
               {/* Back to Dashboard */}
               <Link 
                 to="/dashboard" 
-                className={`flex items-center px-4 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+                className={`flex items-center px-4 py-2 rounded-lg ${isDark ? 'bg-navy-800 hover:bg-navy-700' : 'bg-silver-100 hover:bg-silver-200'} transition-colors shadow-sm font-semibold`}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Dashboard
@@ -1896,12 +2134,13 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         </div>
         
         {/* Click outside handler for dropdowns */}
-        {(showUserMenu || showUtilitiesMenu) && (
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
           <div 
             className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}
@@ -1913,7 +2152,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-blue-600 mb-2">Venture Detail</h1>
           <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-            Detailed information about {company.name}
+            {company.description || 'No description available.'}
           </p>
         </div>
 
@@ -1931,6 +2170,45 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           </div>
         )}
 
+        {/* Scorecard Highlights temporarily hidden */}
+
+        {/* Detail Report Text Output */}
+        {detailReportText && (
+          <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg shadow-lg p-6 mb-8`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-blue-600">Detail Report (Text)</h3>
+              <button
+                onClick={() => {
+                  setDetailReportText(null);
+                  setDetailReportTextUrl(null);
+                }}
+                className="text-sm text-red-500 hover:text-red-600 font-semibold"
+              >
+                Clear
+              </button>
+            </div>
+            {detailReportTextUrl && (
+              <div className="mb-4">
+                <a
+                  href={detailReportTextUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </a>
+              </div>
+            )}
+            <div
+              className={`whitespace-pre-wrap text-sm leading-6 rounded-lg p-4 ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}
+              style={{ maxHeight: '400px', overflowY: 'auto' }}
+            >
+              {detailReportText}
+            </div>
+          </div>
+        )}
+
         {/* Company Name and Action Buttons */}
         <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} mb-8`}>
           <div className="p-6">
@@ -1943,7 +2221,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                 const currentAnalysisStatus = analysis.length > 0 ? analysis[0].status : 'Submitted';
                 
                 // Row 1: Analysis buttons (in specific order)
-                const row1Buttons = ['Analyze-Product', 'Analyze-Market', 'Analyze-Team', 'Analyze-Financials'];
+                const row1Buttons = ['Analyze-Product', 'Analyze-Market', 'Analyze-Team', 'Analyze-Financials', 'Analyze-Valuation'];
                 
                 // Row 2: Create buttons
                 const row2Buttons = ['Create-ScoreCard', 'Create-DetailReport', 'Create-DiligenceQuestions', 'Create-FounderReport'];
@@ -1962,6 +2240,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                   'Analyze-Market': 'Market-Analysis',
                   'Analyze-Team': 'Team-Analysis',
                   'Analyze-Financials': 'Financial-Analysis',
+                  'Analyze-Valuation': 'Valuation-Analysis',
                 };
                 
                 // Helper function to get display text for buttons
@@ -1974,8 +2253,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     displayText = status.replace('Create-', '');
                     // Format the display text nicely - add space before capital letters
                     displayText = displayText.replace(/([a-z])([A-Z])/g, '$1 $2');
-                  } else if (status === 'Team-Analysis-Test') {
-                    displayText = 'Test';
                   } else {
                     displayText = status.replace(/-/g, ' ');
                   }
@@ -1992,14 +2269,9 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                   // Determine button style based on type
                   const isAnalysisButton = status.startsWith('Analyze-');
                   const isCreateButton = status.startsWith('Create-');
-                  const isTestButton = status === 'Team-Analysis-Test';
-                  
                   // Check if this button has a custom prompt
                   const reportName = statusToReportName[status];
                   const hasCustomPrompt = reportName ? customPrompts.has(reportName) : false;
-                  
-                  // Check if all required analysis reports exist (for Create buttons)
-                  const allAnalysisReportsExist = hasAllRequiredAnalysisReports();
                   
                   // Check if this specific analysis report has been generated
                   const existingReportTypes = analysisReports.map(report => report.report_type.toLowerCase());
@@ -2007,7 +2279,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     (status === 'Analyze-Product' && existingReportTypes.includes('product-analysis')) ||
                     (status === 'Analyze-Team' && existingReportTypes.includes('team-analysis')) ||
                     (status === 'Analyze-Market' && existingReportTypes.includes('market-analysis')) ||
-                    (status === 'Analyze-Financials' && existingReportTypes.includes('financial-analysis'));
+                    (status === 'Analyze-Financials' && existingReportTypes.includes('financial-analysis')) ||
+                    (status === 'Analyze-Valuation' && existingReportTypes.includes('valuation-analysis'));
                   
                   // Check if Create button report exists
                   const isCreateReportComplete =
@@ -2028,18 +2301,16 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                     (status === 'Analyze-Product' && isAnalyzingProduct) ||
                     (status === 'Analyze-Market' && isAnalyzingMarket) ||
                     (status === 'Analyze-Financials' && isAnalyzingFinancials) ||
-                    (status === 'Team-Analysis-Test' && isTestingTeamAnalysis) ||
-                    (status === 'Create-ScoreCard' && (isCreatingScoreCard || !allAnalysisReportsExist)) ||
-                    (status === 'Create-DetailReport' && (isCreatingDetailReport || !allAnalysisReportsExist)) ||
-                    (status === 'Create-DiligenceQuestions' && (isCreatingDiligenceQuestions || !allAnalysisReportsExist)) ||
-                    (status === 'Create-FounderReport' && (isCreatingFounderReport || !allAnalysisReportsExist)) ||
+                    (status === 'Analyze-Valuation' && isAnalyzingValuation) ||
+                    (status === 'Create-ScoreCard' && isCreatingScoreCard) ||
+                    (status === 'Create-DetailReport' && isCreatingDetailReport) ||
+                    (status === 'Create-DetailReportText' && isCreatingDetailReportText) ||
+                    (status === 'Create-DiligenceQuestions' && isCreatingDiligenceQuestions) ||
+                    (status === 'Create-FounderReport' && isCreatingFounderReport) ||
                     (status === 'To Diligence' && currentAnalysisStatus === 'In-Diligence');
                   
-                  // Generate tooltip for Create buttons when disabled due to missing reports
-                  // Also add tooltip for completed analysis buttons
-                  const tooltipText = isCreateButton && !allAnalysisReportsExist
-                    ? 'All 4 Analyze reports (Product, Team, Market, Financials) must be generated first'
-                    : isAnalysisComplete
+                  // Generate tooltip for completed analysis buttons
+                  const tooltipText = isAnalysisComplete
                     ? 'This analysis has been completed'
                     : undefined;
                   
@@ -2055,6 +2326,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                           handleAnalyzeMarket();
                         } else if (status === 'Analyze-Financials') {
                           handleAnalyzeFinancials();
+                        } else if (status === 'Analyze-Valuation') {
+                          handleAnalyzeValuation();
                         } else if (status === 'Create-ScoreCard') {
                           handleCreateScoreCard();
                         } else if (status === 'Create-DetailReport') {
@@ -2063,8 +2336,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                           handleCreateDiligenceQuestions();
                         } else if (status === 'Create-FounderReport') {
                           handleCreateFounderReport();
-                        } else if (status === 'Team-Analysis-Test') {
-                          handleTeamAnalysisTest();
                         } else {
                           handleStatusChange(status);
                         }
@@ -2074,13 +2345,12 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                       className={`px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                         isActive
                           ? 'bg-blue-600 text-white'
-                          : isTestButton
-                            ? 'bg-orange-600 text-white hover:bg-orange-700'
-                              : isAnalysisButton && (
+                          : isAnalysisButton && (
                                   (status === 'Analyze-Team' && isAnalyzingTeam) ||
                                   (status === 'Analyze-Product' && isAnalyzingProduct) ||
                                   (status === 'Analyze-Market' && isAnalyzingMarket) ||
-                                  (status === 'Analyze-Financials' && isAnalyzingFinancials)
+                                  (status === 'Analyze-Financials' && isAnalyzingFinancials) ||
+                                  (status === 'Analyze-Valuation' && isAnalyzingValuation)
                                 )
                                 ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                               : isAnalysisButton && isAnalysisComplete
@@ -2102,7 +2372,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                           (status === 'Analyze-Team' && isAnalyzingTeam) ||
                           (status === 'Analyze-Product' && isAnalyzingProduct) ||
                           (status === 'Analyze-Market' && isAnalyzingMarket) ||
-                          (status === 'Analyze-Financials' && isAnalyzingFinancials)
+                          (status === 'Analyze-Financials' && isAnalyzingFinancials) ||
+                          (status === 'Analyze-Valuation' && isAnalyzingValuation)
                         )) ? (
                           <span className="flex items-center gap-2">
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -2113,12 +2384,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                           <span className="flex items-center gap-2">
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Creating...
-                          </span>
-                        ) :
-                       status === 'Team-Analysis-Test' && isTestingTeamAnalysis ? (
-                          <span className="flex items-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Testing...
                           </span>
                         ) :
                        isUpdating ? (
@@ -2146,12 +2411,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                       {row2Buttons.map(renderButton)}
                     </div>
                     
-                    {/* Info message when Create buttons are disabled */}
-                    {!hasAllRequiredAnalysisReports() && (
-                      <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded-lg border border-amber-200 dark:border-amber-800">
-                        ℹ️ <strong>Note:</strong> All 4 Analyze reports (Product, Team, Market, Financials) must be generated before you can create ScoreCard, DetailReport, DiligenceQuestions, or FounderReport.
-                      </div>
-                    )}
                     
                     {/* Row 3: Status Buttons */}
                     <div className="flex items-center gap-3 flex-wrap">
@@ -2320,66 +2579,193 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
               </h2>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                {/* Overall Score */}
-                {analysis[0].overall_score && (
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
-                    {analysis[0].overall_score}/10
-                  </div>
-                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Overall Score
-                  </div>
-                </div>
-                )}
-                
-                {/* Recommendation */}
-                <div className="text-center">
-                  <div className={`text-2xl font-bold mb-2 ${
-                    analysis[0].recommendation === 'Invest' || analysis[0].recommendation === 'Analyze' ? 'text-green-600' :
-                    analysis[0].recommendation === 'Consider' ? 'text-yellow-600' :
-                    'text-red-600'
-                  }`}>
-                    {analysis[0].recommendation || 'Pending'}
-                  </div>
-                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Recommendation
-                  </div>
-                </div>
-                
-                {/* Analysis Date */}
-                <div className="text-center">
-                  <div className={`text-lg font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
-                    {analysis[0].analyzed_at 
-                      ? new Date(analysis[0].analyzed_at).toLocaleDateString()
-                      : analysisReports.length > 0 
-                        ? new Date(analysisReports[0].generated_at).toLocaleDateString()
-                        : 'N/A'
-                    }
-                  </div>
-                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Analysis Date
-                  </div>
-                </div>
-              </div>
-              
-              {/* Analysis History */}
-              {analysis[0].history && (
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-3 flex items-center`}>
-                    📋 Analysis History
+              {/* Scorecards Grid - Temporarily hidden */}
+              {/* TODO: Re-enable scorecard display later */}
+              {false && (
+                <div>
+                  <h3 className={`text-lg font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
+                    Analysis Scorecards
                   </h3>
-                  <div className="space-y-2">
-                    {analysis[0].history.split('\n').map((entry, index) => {
-                      if (!entry.trim()) return null;
-                      const [date, ...action] = entry.split(':');
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Product Scorecard */}
+                    {(() => {
+                      const scoreData = getScoreCardData('product-analysis');
+                      if (!scoreData) return null;
                       return (
-                        <div key={index} className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} flex`}>
-                          <span className="font-medium min-w-[120px]">{date}:</span>
-                          <span className="ml-2">{action.join(':')}</span>
+                        <div className={`rounded-xl p-5 shadow-md transition-all duration-200 hover:shadow-lg ${
+                          isDark 
+                            ? 'bg-gradient-to-br from-blue-900/50 to-blue-800/30 border border-blue-700/50' 
+                            : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200'
+                        }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {scoreData.title.split(' ')[0]}
+                            </h4>
+                            <div className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                              {scoreData.overallScore}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {scoreData.categories.map((category, index) => (
+                              <div key={index} className={`flex justify-between items-center py-2 border-b ${
+                                isDark ? 'border-blue-700/30' : 'border-blue-200/50'
+                              } last:border-0`}>
+                                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {category.name}
+                                </span>
+                                <span className={`text-sm font-semibold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                                  {category.score}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       );
-                    })}
+                    })()}
+                    
+                    {/* Market Scorecard */}
+                    {(() => {
+                      const scoreData = getScoreCardData('market-analysis');
+                      if (!scoreData) return null;
+                      return (
+                        <div className={`rounded-xl p-5 shadow-md transition-all duration-200 hover:shadow-lg ${
+                          isDark 
+                            ? 'bg-gradient-to-br from-green-900/50 to-green-800/30 border border-green-700/50' 
+                            : 'bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200'
+                        }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {scoreData.title.split(' ')[0]}
+                            </h4>
+                            <div className={`text-2xl font-bold ${isDark ? 'text-green-300' : 'text-green-600'}`}>
+                              {scoreData.overallScore}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {scoreData.categories.map((category, index) => (
+                              <div key={index} className={`flex justify-between items-center py-2 border-b ${
+                                isDark ? 'border-green-700/30' : 'border-green-200/50'
+                              } last:border-0`}>
+                                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {category.name}
+                                </span>
+                                <span className={`text-sm font-semibold ${isDark ? 'text-green-300' : 'text-green-600'}`}>
+                                  {category.score}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {/* Team Scorecard */}
+                    {(() => {
+                      const scoreData = getScoreCardData('team-analysis');
+                      if (!scoreData) return null;
+                      return (
+                        <div className={`rounded-xl p-5 shadow-md transition-all duration-200 hover:shadow-lg ${
+                          isDark 
+                            ? 'bg-gradient-to-br from-purple-900/50 to-purple-800/30 border border-purple-700/50' 
+                            : 'bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200'
+                        }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {scoreData.title.split(' ')[0]}
+                            </h4>
+                            <div className={`text-2xl font-bold ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
+                              {scoreData.overallScore}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {scoreData.categories.map((category, index) => (
+                              <div key={index} className={`flex justify-between items-center py-2 border-b ${
+                                isDark ? 'border-purple-700/30' : 'border-purple-200/50'
+                              } last:border-0`}>
+                                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {category.name}
+                                </span>
+                                <span className={`text-sm font-semibold ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
+                                  {category.score}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {/* Financials Scorecard */}
+                    {(() => {
+                      const scoreData = getScoreCardData('financial-analysis');
+                      if (!scoreData) return null;
+                      return (
+                        <div className={`rounded-xl p-5 shadow-md transition-all duration-200 hover:shadow-lg ${
+                          isDark 
+                            ? 'bg-gradient-to-br from-orange-900/50 to-orange-800/30 border border-orange-700/50' 
+                            : 'bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200'
+                        }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {scoreData.title.split(' ')[0]}
+                            </h4>
+                            <div className={`text-2xl font-bold ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>
+                              {scoreData.overallScore}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {scoreData.categories.map((category, index) => (
+                              <div key={index} className={`flex justify-between items-center py-2 border-b ${
+                                isDark ? 'border-orange-700/30' : 'border-orange-200/50'
+                              } last:border-0`}>
+                                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {category.name}
+                                </span>
+                                <span className={`text-sm font-semibold ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>
+                                  {category.score}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {/* Valuation Scorecard */}
+                    {(() => {
+                      const scoreData = getScoreCardData('valuation-analysis');
+                      if (!scoreData) return null;
+                      return (
+                        <div className={`rounded-xl p-5 shadow-md transition-all duration-200 hover:shadow-lg ${
+                          isDark 
+                            ? 'bg-gradient-to-br from-indigo-900/50 to-indigo-800/30 border border-indigo-700/50' 
+                            : 'bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200'
+                        }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {scoreData.title.split(' ')[0]}
+                            </h4>
+                            <div className={`text-2xl font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}>
+                              {scoreData.overallScore}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {scoreData.categories.map((category, index) => (
+                              <div key={index} className={`flex justify-between items-center py-2 border-b ${
+                                isDark ? 'border-indigo-700/30' : 'border-indigo-200/50'
+                              } last:border-0`}>
+                                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {category.name}
+                                </span>
+                                <span className={`text-sm font-semibold ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}>
+                                  {category.score}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -2427,50 +2813,99 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {analysisReports.map((report) => (
-                  <div key={report.id} className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700' : 'border-gray-200 bg-gray-50'}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h4 className={`font-semibold capitalize mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {report.report_type === 'summary' ? '📊 Summary Report' :
-                           report.report_type === 'detailed' ? '📈 Detailed Analysis' :
-                           report.report_type === 'team-analysis' ? 'Team Analysis' :
-                           report.report_type === 'feedback' ? '💬 Company Feedback' :
-                           report.report_type.replace(/-/g, ' ')}
-                        </h4>
-                        <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-1`}>
-                          {report.file_name}
-                        </p>
-                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Generated: {new Date(report.generated_at).toLocaleDateString()} {new Date(report.generated_at).toLocaleTimeString()}
-                        </p>
+                {analysisReports.map((report) => {
+                  const isScorecard = report.report_type === 'scorecard' || report.report_type === 'scorecard-analysis';
+                  const isExpanded = expandedScorecards.has(report.id);
+                  const hasHtmlContent = !!scorecardHtmlContent[report.id];
+                  
+                  return (
+                    <div key={report.id} className={`${isDark ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg border ${isDark ? 'border-gray-600' : 'border-gray-200'} ${isScorecard && isExpanded ? 'md:col-span-2' : ''}`}>
+                      <div className={`p-4 ${isScorecard && isExpanded ? 'border-b border-gray-300 dark:border-gray-600' : ''}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <h4 className={`font-semibold capitalize mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {report.report_type === 'summary' ? '📊 Summary Report' :
+                               report.report_type === 'detailed' ? '📈 Detailed Analysis' :
+                               report.report_type === 'team-analysis' ? 'Team Analysis' :
+                               report.report_type === 'feedback' ? '💬 Company Feedback' :
+                               isScorecard ? getScorecardDisplayName(report.report_type) :
+                               report.report_type.replace(/-/g, ' ')}
+                            </h4>
+                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-1`}>
+                              {report.file_name}
+                            </p>
+                            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Generated: {new Date(report.generated_at).toLocaleDateString()} {new Date(report.generated_at).toLocaleTimeString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {isScorecard && (
+                              <button
+                                onClick={() => toggleScorecardExpansion(report.id, report)}
+                                className={`p-2 rounded transition-colors flex-shrink-0 ${
+                                  isExpanded 
+                                    ? 'text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20' 
+                                    : 'text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/20'
+                                }`}
+                                title={isExpanded ? 'Collapse scorecard' : 'Expand scorecard'}
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleViewPdf(report)}
+                              className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors flex-shrink-0"
+                              title="View PDF"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadReport(report)}
+                              className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded transition-colors flex-shrink-0"
+                              title="Download report"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteReport(report)}
+                              className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
+                              title="Delete report"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewPdf(report)}
-                          className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors flex-shrink-0"
-                          title="View PDF"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadReport(report)}
-                          className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded transition-colors flex-shrink-0"
-                          title="Download report"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteReport(report)}
-                          className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
-                          title="Delete report"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      
+                      {/* Scorecard HTML Display */}
+                      {isScorecard && isExpanded && (
+                        <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <div className="p-4">
+                            {hasHtmlContent ? (
+                              <div className="w-full" style={{ minHeight: '600px' }}>
+                                <iframe
+                                  src={scorecardHtmlContent[report.id]}
+                                  className="w-full border-0 rounded-lg"
+                                  style={{ height: '800px', minHeight: '600px' }}
+                                  title="Scorecard Report"
+                                />
+                              </div>
+                            ) : (
+                              <div className={`p-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                <p>Loading scorecard...</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -2518,11 +2953,23 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
         {/* Company Information Card */}
         <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h2 className="text-xl font-bold text-blue-600 flex items-center">
               <Building2 className="w-5 h-5 mr-2" />
               Company Information
             </h2>
+            <button
+              onClick={() => navigate('/edit-company', { state: { company } })}
+              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                isDark 
+                  ? 'bg-navy-700 text-silver-300 hover:bg-navy-600' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title="Edit Company Information"
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              Edit
+            </button>
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

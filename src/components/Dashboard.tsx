@@ -28,6 +28,7 @@ interface Analysis {
   overall_score?: number;
   recommendation?: string;
   recommendation_reason?: string;
+  match_score?: number | string | null;
   comments?: string;
 }
 
@@ -45,7 +46,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
   const [itemsToShow, setItemsToShow] = React.useState('10');
   const [sortBy, setSortBy] = React.useState('Recent');
   const [showUserMenu, setShowUserMenu] = React.useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = React.useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = React.useState(false);
+  const [showAdminMenu, setShowAdminMenu] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
   const [companies, setCompanies] = React.useState<Company[]>([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = React.useState(true);
@@ -147,6 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
             overall_score: analysis.overall_score,
             recommendation: analysis.recommendation,
             recommendation_reason: analysis.recommendation_reason,
+            match_score: analysis.match_score ?? null,
             comments: analysis.comments
           });
         } else {
@@ -326,7 +329,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
       {/* Navigation */}
       <nav className={`${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
@@ -334,29 +337,43 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               {/* Navigation Menu */}
               <nav className="hidden md:flex items-center space-x-6">
                 <Link to="/dashboard" className="text-gold-600 font-bold">Dashboard</Link>
                 
-                {/* Utilities Dropdown */}
+                {/* Preferences Dropdown - Only show for investors */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
+                    onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
                     className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
                   >
-                    Utilities <ChevronDown className="w-4 h-4 ml-1" />
+                    Preferences <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
-                  {showUtilitiesMenu && (
+                  {showPreferencesMenu && (
                     <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
                       <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
                         Investor Preferences
                       </Link>
-                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                        Edit Prompts
-                      </Link>
                       <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                        Investor Prompts
+                        Custom Analysis Prompts
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Admin Dropdown - Only show for investors */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className={`flex items-center ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}
+                  >
+                    Admin <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showAdminMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
+                        Default Analysis Prompts
                       </Link>
                     </div>
                   )}
@@ -411,12 +428,13 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
         </div>
         
         {/* Click outside handler for dropdowns */}
-        {(showUserMenu || showUtilitiesMenu) && (
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
           <div 
             className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}
@@ -547,6 +565,13 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
                   const analysis = company.analysis?.[0];
                   const status = analysis?.status || 'Submitted';
                   const recommendation = analysis?.recommendation || getRecommendation(company.overall_score ?? null);
+                  const matchScoreRaw = analysis?.match_score;
+                  const matchScore =
+                    typeof matchScoreRaw === 'number'
+                      ? matchScoreRaw
+                      : typeof matchScoreRaw === 'string' && !Number.isNaN(parseFloat(matchScoreRaw))
+                        ? parseFloat(matchScoreRaw)
+                        : null;
                   const isAnalyzing = analyzingCompanies.has(company.id);
                 return (
                     <div 
@@ -600,7 +625,14 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
 
                     {/* Recommendation */}
                     <div>
-                      <p className={`text-xs font-semibold ${isDark ? 'text-silver-400' : 'text-navy-500'} mb-1`}>Recommendation</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className={`text-xs font-semibold ${isDark ? 'text-silver-400' : 'text-navy-500'}`}>Recommendation</p>
+                        {matchScore !== null && !Number.isNaN(matchScore) && (
+                          <span className="text-sm font-semibold text-blue-600">
+                            Match Score: {matchScore.toFixed(1)}
+                          </span>
+                        )}
+                      </div>
                         {recommendation && recommendation !== 'Pending Analysis' ? (
                         <>
                           <p className={`text-sm font-medium ${

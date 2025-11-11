@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, CreditCard as Edit3, Trash2, Save, X, User, ChevronDown, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Plus, CreditCard as Edit3, Trash2, Save, X, User, ChevronDown, MessageSquare, Brain, Sparkles } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
 
 interface EditPromptsProps {
@@ -13,7 +13,6 @@ interface Prompt {
   prompt_name: string;
   prompt_detail: string;
   description?: string;
-  preferred_llm: string;
   created_at: string;
   updated_at: string;
 }
@@ -27,14 +26,16 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
   const [newPrompt, setNewPrompt] = useState({
     prompt_name: '',
     prompt_detail: '',
-    description: '',
-    preferred_llm: 'GPT-4'
+    description: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUtilitiesMenu, setShowUtilitiesMenu] = useState(false);
+  const [showPreferencesMenu, setShowPreferencesMenu] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [llmPreference, setLlmPreference] = useState<'OpenAI' | 'Claude'>('OpenAI');
+  const [isSavingLlmPreference, setIsSavingLlmPreference] = useState(false);
 
   const llmOptions = ['GPT-4', 'GPT-3.5', 'Claude-3', 'Claude-2', 'Gemini-Pro'];
 
@@ -48,10 +49,95 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
       }
       setUser(currentUser);
       await loadPrompts();
+      await loadLlmPreference(currentUser.id);
     };
     
     checkAuthAndLoadData();
   }, [navigate]);
+
+  const loadLlmPreference = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('llm_preferences')
+        .select('preferred_llm')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading LLM preference:', error);
+        return;
+      }
+
+      if (data) {
+        setLlmPreference(data.preferred_llm as 'OpenAI' | 'Claude');
+      } else {
+        // No preference found, use default
+        setLlmPreference('OpenAI');
+      }
+    } catch (error) {
+      console.error('Error loading LLM preference:', error);
+    }
+  };
+
+  const handleSaveLlmPreference = async (newPreference: 'OpenAI' | 'Claude') => {
+    if (!user) return;
+
+    try {
+      setIsSavingLlmPreference(true);
+      
+      // Check if preference already exists
+      const { data: existingPreference, error: checkError } = await supabase
+        .from('llm_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking LLM preference:', checkError);
+        setMessage({ type: 'error', text: `Failed to save LLM preference: ${checkError.message}` });
+        return;
+      }
+
+      let error;
+      if (existingPreference?.id) {
+        // Update existing preference
+        const { error: updateError } = await supabase
+          .from('llm_preferences')
+          .update({
+            preferred_llm: newPreference,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id);
+        error = updateError;
+      } else {
+        // Insert new preference
+        const { error: insertError } = await supabase
+          .from('llm_preferences')
+          .insert({
+            user_id: user.id,
+            preferred_llm: newPreference,
+          });
+        error = insertError;
+      }
+
+      if (error) {
+        console.error('Error saving LLM preference:', error);
+        setMessage({ type: 'error', text: `Failed to save LLM preference: ${error.message || 'Unknown error'}` });
+        return;
+      }
+
+      setLlmPreference(newPreference);
+      setMessage({ type: 'success', text: `LLM preference saved: ${newPreference}` });
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error: any) {
+      console.error('Error saving LLM preference:', error);
+      setMessage({ type: 'error', text: `Failed to save LLM preference: ${error.message || 'Unknown error'}` });
+    } finally {
+      setIsSavingLlmPreference(false);
+    }
+  };
 
   const loadPrompts = async () => {
     try {
@@ -97,7 +183,7 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
       }
 
       setPrompts(prev => [data, ...prev]);
-      setNewPrompt({ prompt_name: '', prompt_detail: '', description: '', preferred_llm: 'GPT-4' });
+      setNewPrompt({ prompt_name: '', prompt_detail: '', description: '' });
       setShowAddForm(false);
       setMessage({ type: 'success', text: 'Prompt added successfully' });
     } catch (error) {
@@ -119,7 +205,6 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
           prompt_name: editingPrompt.prompt_name,
           prompt_detail: editingPrompt.prompt_detail,
           description: editingPrompt.description,
-          preferred_llm: editingPrompt.preferred_llm,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingPrompt.id)
@@ -181,7 +266,7 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
       {/* Navigation */}
       <nav className={`${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
@@ -189,29 +274,43 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               {/* Navigation Menu */}
               <nav className="hidden md:flex items-center space-x-6">
                 <Link to="/dashboard" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>Dashboard</Link>
                 
-                {/* Utilities Dropdown */}
+                {/* Preferences Dropdown */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowUtilitiesMenu(!showUtilitiesMenu)}
+                    onClick={() => setShowPreferencesMenu(!showPreferencesMenu)}
                     className={`flex items-center text-gold-600 font-bold transition-colors`}
                   >
-                    Utilities <ChevronDown className="w-4 h-4 ml-1" />
+                    Preferences <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
-                  {showUtilitiesMenu && (
+                  {showPreferencesMenu && (
                     <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
                       <Link to="/investor-preferences" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                        Investor Preferences
-                      </Link>
-                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm text-gold-600 font-bold bg-gold-50 dark:bg-gold-900/20`}>
-                        Edit Prompts
+                        Screening Criteria
                       </Link>
                       <Link to="/investor-prompts" className={`block px-4 py-2 text-sm ${isDark ? 'text-silver-300 hover:bg-navy-700' : 'text-navy-700 hover:bg-silver-50'} transition-colors font-semibold`}>
-                        Investor Prompts
+                        Custom Analysis Prompts
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Admin Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className={`flex items-center text-gold-600 font-bold transition-colors`}
+                  >
+                    Admin <ChevronDown className="w-4 h-4 ml-1" />
+                  </button>
+                  {showAdminMenu && (
+                    <div className={`absolute top-full left-0 mt-2 w-48 ${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-lg shadow-financial border z-50`}>
+                      <Link to="/edit-prompts" className={`block px-4 py-2 text-sm text-gold-600 font-bold bg-gold-50 dark:bg-gold-900/20`}>
+                        Default Analysis Prompts
                       </Link>
                     </div>
                   )}
@@ -264,12 +363,13 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
         </div>
         
         {/* Click outside handler for dropdowns */}
-        {(showUserMenu || showUtilitiesMenu) && (
+        {(showUserMenu || showPreferencesMenu || showAdminMenu) && (
           <div 
             className="fixed inset-0 z-40" 
             onClick={() => {
               setShowUserMenu(false);
-              setShowUtilitiesMenu(false);
+              setShowPreferencesMenu(false);
+              setShowAdminMenu(false);
             }}
           />
         )}
@@ -283,6 +383,81 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
           <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'}`}>
             Manage AI prompts for investment analysis and company evaluation
           </p>
+        </div>
+
+        {/* LLM Preference Selector Section */}
+        <div className={`${isDark ? 'bg-navy-800 border-navy-700' : 'bg-white border-silver-200'} rounded-xl shadow-financial border mb-8`}>
+          <div className="p-6 border-b border-silver-200 dark:border-navy-700">
+            <h2 className="text-2xl font-bold text-gold-600 flex items-center">
+              <Brain className="w-5 h-5 mr-2" />
+              Preferred LLM Provider
+            </h2>
+            <p className={`text-sm mt-2 ${isDark ? 'text-silver-400' : 'text-navy-600'}`}>
+              Choose which LLM to use for analysis. This preference will be used for all analysis functions.
+            </p>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleSaveLlmPreference('OpenAI')}
+                disabled={isSavingLlmPreference}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  llmPreference === 'OpenAI'
+                    ? 'border-gold-500 bg-gold-50 dark:bg-gold-900/20'
+                    : isDark
+                    ? 'border-navy-600 bg-navy-700 hover:border-navy-500'
+                    : 'border-silver-300 bg-silver-50 hover:border-silver-400'
+                } ${isSavingLlmPreference ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Sparkles className={`w-6 h-6 ${llmPreference === 'OpenAI' ? 'text-gold-600' : isDark ? 'text-silver-400' : 'text-navy-600'}`} />
+                  <div>
+                    <div className={`font-bold text-left ${llmPreference === 'OpenAI' ? 'text-gold-600' : isDark ? 'text-silver-300' : 'text-navy-900'}`}>
+                      OpenAI
+                    </div>
+                    <div className={`text-xs mt-1 text-left ${isDark ? 'text-silver-400' : 'text-navy-600'}`}>
+                      GPT-4, GPT-3.5
+                    </div>
+                  </div>
+                </div>
+                {llmPreference === 'OpenAI' && (
+                  <div className="mt-2 text-xs text-gold-600 font-semibold text-left">✓ Selected</div>
+                )}
+              </button>
+
+              <button
+                onClick={() => handleSaveLlmPreference('Claude')}
+                disabled={isSavingLlmPreference}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  llmPreference === 'Claude'
+                    ? 'border-gold-500 bg-gold-50 dark:bg-gold-900/20'
+                    : isDark
+                    ? 'border-navy-600 bg-navy-700 hover:border-navy-500'
+                    : 'border-silver-300 bg-silver-50 hover:border-silver-400'
+                } ${isSavingLlmPreference ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Brain className={`w-6 h-6 ${llmPreference === 'Claude' ? 'text-gold-600' : isDark ? 'text-silver-400' : 'text-navy-600'}`} />
+                  <div>
+                    <div className={`font-bold text-left ${llmPreference === 'Claude' ? 'text-gold-600' : isDark ? 'text-silver-300' : 'text-navy-900'}`}>
+                      Claude
+                    </div>
+                    <div className={`text-xs mt-1 text-left ${isDark ? 'text-silver-400' : 'text-navy-600'}`}>
+                      Claude 3.5 Sonnet
+                    </div>
+                  </div>
+                </div>
+                {llmPreference === 'Claude' && (
+                  <div className="mt-2 text-xs text-gold-600 font-semibold text-left">✓ Selected</div>
+                )}
+              </button>
+            </div>
+            {isSavingLlmPreference && (
+              <div className={`mt-4 text-sm text-center ${isDark ? 'text-silver-400' : 'text-navy-600'}`}>
+                Saving preference...
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Message Display */}
@@ -369,25 +544,6 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                     }`}
                   />
                 </div>
-                {/* Hidden: Preferred LLM field */}
-                <div className="hidden">
-                  <label className={`block text-sm font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'} mb-2`}>
-                    Preferred LLM
-                  </label>
-                  <select
-                    value={newPrompt.preferred_llm}
-                    onChange={(e) => setNewPrompt(prev => ({ ...prev, preferred_llm: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-colors ${
-                      isDark 
-                        ? 'bg-navy-700 border-navy-600 text-white' 
-                        : 'bg-white border-silver-300 text-navy-900'
-                    }`}
-                  >
-                    {llmOptions.map(llm => (
-                      <option key={llm} value={llm}>{llm}</option>
-                    ))}
-                  </select>
-                </div>
                 <div className="flex space-x-3">
                   <button
                     onClick={handleAddPrompt}
@@ -400,7 +556,7 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                   <button
                     onClick={() => {
                       setShowAddForm(false);
-                      setNewPrompt({ prompt_name: '', prompt_detail: '', description: '', preferred_llm: 'GPT-4' });
+                      setNewPrompt({ prompt_name: '', prompt_detail: '', description: '' });
                     }}
                     className={`px-6 py-2 rounded-lg font-bold transition-colors ${
                       isDark 
@@ -486,25 +642,6 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                             }`}
                           />
                         </div>
-                        {/* Hidden: Preferred LLM field */}
-                        <div className="hidden">
-                          <label className={`block text-sm font-semibold ${isDark ? 'text-silver-300' : 'text-navy-700'} mb-2`}>
-                            Preferred LLM
-                          </label>
-                          <select
-                            value={editingPrompt.preferred_llm}
-                            onChange={(e) => setEditingPrompt(prev => prev ? { ...prev, preferred_llm: e.target.value } : null)}
-                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 ${
-                              isDark 
-                                ? 'bg-navy-600 border-navy-500 text-white' 
-                                : 'bg-white border-silver-300 text-navy-900'
-                            }`}
-                          >
-                            {llmOptions.map(llm => (
-                              <option key={llm} value={llm}>{llm}</option>
-                            ))}
-                          </select>
-                        </div>
                         <div className="flex space-x-2">
                           <button
                             onClick={handleUpdatePrompt}
@@ -532,10 +669,6 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-xl font-bold text-gold-600">{prompt.prompt_name}</h3>
-                            {/* Hidden: Preferred LLM badge */}
-                            <span className="hidden">
-                              {prompt.preferred_llm}
-                            </span>
                           </div>
                           <p className={`text-sm ${isDark ? 'text-silver-300' : 'text-slate-600'} mb-3 leading-relaxed`}>
                             {prompt.prompt_detail}

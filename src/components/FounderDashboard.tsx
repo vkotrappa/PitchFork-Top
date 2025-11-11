@@ -115,6 +115,7 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
       if (companyData) {
         console.log('FounderDashboard: Company found:', companyData.name);
         setCompany(companyData);
+        sessionStorage.setItem('companyId', companyData.id);
         await loadDocuments(companyData.id);
         await loadInvestorAnalyses(companyData.id);
       } else {
@@ -254,6 +255,14 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
     }
   };
 
+  const handleOpenInvestorMatch = () => {
+    if (!company) {
+      return;
+    }
+    const url = `/company-investor-match?companyId=${encodeURIComponent(company.id)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleLogout = async () => {
     const { error } = await signOut();
     if (!error) {
@@ -338,17 +347,16 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
           <div className="text-center">
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-12`}>
               <Building2 className="w-16 h-16 mx-auto mb-6 text-orange-500" />
-              <h1 className="text-3xl font-bold text-orange-600 mb-4">Submit Your Pitch Deck</h1>
+              <h1 className="text-3xl font-bold text-orange-600 mb-4">Create Your Company Profile</h1>
               <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8 max-w-2xl mx-auto`}>
-                Welcome to Pitch Fork! To get started, please submit your company information and pitch deck materials. 
-                Our AI-powered analysis will help investors understand your business opportunity.
+                Welcome to Pitch Fork! To get started, create your company profile so we can match you with the right investors.
               </p>
               <Link 
                 to="/submit-pitch-deck"
                 className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors inline-flex items-center"
               >
                 <Upload className="w-6 h-6 mr-3" />
-                Founders: Submit Pitch Deck
+                Founders: Create Company Profile
               </Link>
             </div>
           </div>
@@ -633,6 +641,19 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
               </div>
             )}
           </div>
+        </div>
+        {/* Match Investors Call-to-Action */}
+        <div className="mt-10 text-center">
+          <button
+            onClick={handleOpenInvestorMatch}
+            className="inline-flex items-center px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          >
+            <BarChart3 className="w-5 h-5 mr-2" />
+            Match Investors
+          </button>
+          <p className={`mt-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            See how well investors align with your company profile based on sector, ARR, valuation, and more.
+          </p>
         </div>
       </div>
 

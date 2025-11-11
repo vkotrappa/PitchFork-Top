@@ -38,16 +38,55 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     console.log('✓ Supabase client initialized')
 
-    // Initialize OpenAI client
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY is not set')
-    }
-    const openai = new OpenAI({ apiKey: openaiApiKey })
-    console.log('✓ OpenAI client initialized')
-
-    // Parse request body
+    // Initialize Supabase admin client (needed to fetch user preferences)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+    
+    // Parse request body to get user_id first
     const { company_id, investor_user_id, analysis_id }: ScreeningRequest = await req.json()
+
+    // Get LLM preference for the user
+    console.log('Fetching LLM preference for user:', investor_user_id)
+    const { data: llmPreferenceData, error: llmError } = await supabaseAdmin
+      .from('llm_preferences')
+      .select('preferred_llm')
+      .eq('user_id', investor_user_id)
+      .maybeSingle()
+
+    const preferredLlm = llmPreferenceData?.preferred_llm || 'OpenAI'
+    console.log(`✓ User LLM preference: ${preferredLlm}`)
+
+    // Initialize LLM client based on preference
+    let openai: OpenAI | null = null
+    let anthropic: any = null
+    const useClaude = preferredLlm === 'Claude'
+    
+    if (useClaude) {
+      const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
+      if (!anthropicApiKey) {
+        console.log('⚠️  ANTHROPIC_API_KEY not set, falling back to OpenAI')
+      } else {
+        try {
+          const Anthropic = (await import('npm:@anthropic-ai/sdk@0.31.0')).default
+          anthropic = new Anthropic({ apiKey: anthropicApiKey })
+          console.log('✓ Anthropic client initialized')
+        } catch (error) {
+          console.error('Error initializing Anthropic:', error)
+          console.log('⚠️  Falling back to OpenAI')
+        }
+      }
+    }
+    
+    // Initialize OpenAI client (used as fallback or when preference is OpenAI)
+    if (!useClaude || !anthropic) {
+      const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+      if (!openaiApiKey) {
+        throw new Error('OPENAI_API_KEY is not set (required as fallback)')
+      }
+      openai = new OpenAI({ apiKey: openaiApiKey })
+      console.log('✓ OpenAI client initialized')
+    }
+
+    // Request body already parsed above
 
     console.log('=== REQUEST PARAMETERS ===')
     console.log('Company ID:', company_id)
@@ -213,7 +252,7 @@ Provide your response in the following JSON format:
 
 Be strict but fair. Only recommend "Accept" if there's a clear match with the investor's stated criteria. Base your decision on the official company information provided above.`
 
-    console.log('=== STEP 6: SENDING TO OPENAI ===')
+    console.log(`=== STEP 6: SENDING TO ${useClaude && anthropic ? 'ANTHROPIC' : 'OPENAI'} ===`)
     console.log('Prompt length:', screeningPrompt.length, 'characters')
     console.log('Has pitch deck:', !!fileId)
     console.log('Will use:', fileId ? 'Assistants API with file_search' : 'Chat Completions API')
@@ -223,6 +262,10 @@ Be strict but fair. Only recommend "Accept" if there's a clear match with the in
 
     if (fileId) {
       // Use Assistants API with file search if we have a pitch deck
+      // Note: Assistants API is only available with OpenAI, so we use OpenAI even if Claude is preferred
+      if (!openai) {
+        throw new Error('OpenAI client required for Assistants API (pitch deck attachment)')
+      }
       console.log('Creating OpenAI Assistant...')
       const assistant = await openai.beta.assistants.create({
         name: 'Investment Screening Assistant',
@@ -292,28 +335,67 @@ Be strict but fair. Only recommend "Accept" if there's a clear match with the in
       console.log('✓ Cleanup complete')
     } else {
       // Use Chat Completions API without file
-      console.log('Using Chat Completions API (no pitch deck)...')
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert investment screening assistant. Always respond with valid JSON.',
-          },
-          {
-            role: 'user',
-            content: screeningPrompt,
-          },
-        ],
-        response_format: { type: 'json_object' },
-      })
+      console.log(`Using ${useClaude && anthropic ? 'Anthropic' : 'OpenAI'} Chat Completions API (no pitch deck)...`)
+      
+      if (useClaude && anthropic) {
+        // Use Claude
+        const message = await anthropic.messages.create({
+          model: 'claude-3-7-sonnet-20250219',
+          max_tokens: 4096,
+          messages: [
+            {
+              role: 'user',
+              content: `You are an expert investment screening assistant. Always respond with valid JSON.
 
-      const responseText = completion.choices[0].message.content || '{}'
-      console.log('=== OPENAI RESPONSE ===')
-      console.log(responseText)
-      console.log('======================')
-      screeningResult = JSON.parse(responseText)
-      console.log('✓ Parsed JSON successfully')
+${screeningPrompt}
+
+Provide your response in valid JSON format only.`,
+            },
+          ],
+        })
+
+        const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
+        console.log('=== ANTHROPIC RESPONSE ===')
+        console.log(responseText)
+        console.log('======================')
+        
+        // Parse JSON from response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          screeningResult = JSON.parse(jsonMatch[0])
+          console.log('✓ Parsed JSON successfully')
+        } else {
+          console.error('❌ Could not find JSON in response')
+          throw new Error('Could not parse JSON from Anthropic response')
+        }
+      } else {
+        // Use OpenAI
+        if (!openai) {
+          throw new Error('OpenAI client not initialized')
+        }
+        
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4-turbo-preview',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert investment screening assistant. Always respond with valid JSON.',
+            },
+            {
+              role: 'user',
+              content: screeningPrompt,
+            },
+          ],
+          response_format: { type: 'json_object' },
+        })
+
+        const responseText = completion.choices[0].message.content || '{}'
+        console.log('=== OPENAI RESPONSE ===')
+        console.log(responseText)
+        console.log('======================')
+        screeningResult = JSON.parse(responseText)
+        console.log('✓ Parsed JSON successfully')
+      }
     }
 
     console.log('=== SCREENING RESULT ===')
