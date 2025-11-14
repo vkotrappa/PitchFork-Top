@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "serve": "deno run --allow-all --watch index.ts"
+  },
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.38.4"
+  }
+}
+

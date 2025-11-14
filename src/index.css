@@ -18,6 +18,11 @@
     font-weight: 600;
   }
   
+  /* Aptos font for home page */
+  .font-aptos {
+    font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  
   /* Strong headings */
   .font-bold {
     font-weight: 700;

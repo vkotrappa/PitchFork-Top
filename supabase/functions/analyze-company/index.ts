@@ -528,7 +528,7 @@ const analysisConfig = {
     promptName: 'Create-Detail-Report',
     reportTitle: 'Comprehensive Detail Report',
     assistantName: 'Report Assembler',
-    assistantInstructions: 'You are an expert at assembling comprehensive investment reports. Create a detailed executive summary with high-level scorecard first, then include the complete content of each analysis report as separate sections. Do NOT summarize or condense the individual reports - include their full content. Focus on creating a comprehensive executive summary that synthesizes key insights from all reports.',
+    assistantInstructions: 'You are a report assembler. Your task is simple: combine the provided analysis reports into one comprehensive document. Read each report in full and include ALL of its content. Do NOT summarize, condense, or synthesize. Do NOT create new analysis. Simply combine the reports in this order: 1) Product Analysis, 2) Market Analysis, 3) Team Analysis, 4) Financial Analysis, 5) Valuation Analysis. Preserve every detail from each report. Use clear section headers to separate each report type.',
     vectorStoreName: 'Detail Report Assembly',
     historyLabel: 'Create-DetailReport',
   },
@@ -1274,9 +1274,9 @@ Deno.serve(async (req: Request) => {
     // Step 4: Process documents or existing reports
     let fileIds: string[] = [];
     
-    // For scorecard, diligence-questions, founder-report, and valuation, use existing reports if available
-    // detail-report now processes documents directly (not existing reports)
-    if ((analysisType === 'scorecard' || analysisType === 'diligence-questions' || analysisType === 'founder-report' || analysisType === 'valuation') && requestExistingReports && requestExistingReports.length > 0) {
+    // For scorecard, diligence-questions, founder-report, detail-report, and valuation, use existing reports if available
+    // detail-report now uses existing reports instead of documents to avoid timeouts
+    if ((analysisType === 'scorecard' || analysisType === 'diligence-questions' || analysisType === 'founder-report' || analysisType === 'detail-report' || analysisType === 'valuation') && requestExistingReports && requestExistingReports.length > 0) {
       console.log(`Processing ${requestExistingReports.length} existing reports for ${analysisType} generation...`);
       console.log('Existing reports received:', JSON.stringify(requestExistingReports, null, 2));
       
@@ -1436,7 +1436,8 @@ Deno.serve(async (req: Request) => {
     console.log('Waiting for vector store to index files...');
     let vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStore.id);
     let attempts = 0;
-    const maxAttempts = 120; // Wait up to 120 seconds for indexing
+    // For detail-report, reduce wait time since we're just combining reports, not doing complex analysis
+    const maxAttempts = analysisType === 'detail-report' ? 60 : 120; // Wait up to 60 seconds for detail-report, 120 for others
     
     while (attempts < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 2000)); // Check every 2 seconds
@@ -1548,8 +1549,37 @@ Rules:
 `;
     }
 
-    // Modify prompt to explicitly instruct using file_search and prioritize company profile
-    const enhancedPrompt = `${companyProfile}
+    // For detail-report, use simplified instructions - just combine reports
+    let enhancedPrompt: string;
+    if (analysisType === 'detail-report' && requestExistingReports && requestExistingReports.length > 0) {
+      // Simplified prompt for detail-report - just combine existing reports
+      enhancedPrompt = `${companyProfile}
+
+=== DETAIL REPORT ASSEMBLY INSTRUCTIONS ===
+
+Your task is simple: combine the provided analysis reports into one comprehensive document.
+
+STEPS:
+1. Use the file_search tool to read each analysis report PDF
+2. For each report, include ALL of its content - do NOT summarize or condense
+3. Combine reports in this order:
+   - Product Analysis Report
+   - Market Analysis Report  
+   - Team Analysis Report
+   - Financial Analysis Report
+   - Valuation Analysis Report
+4. Use clear section headers (## Product Analysis, ## Market Analysis, etc.) to separate each report
+5. Preserve every detail, score, assessment, and recommendation from each report
+6. Do NOT create new analysis or synthesis
+7. Do NOT create an executive summary unless one already exists in the reports
+8. Simply combine the reports as-is, preserving all content
+
+${promptText}
+
+CRITICAL: Read each report in full using file_search and include its complete content. Do not summarize or synthesize.`;
+    } else {
+      // Standard prompt for other analysis types
+      enhancedPrompt = `${companyProfile}
 
 === ANALYSIS INSTRUCTIONS ===
 

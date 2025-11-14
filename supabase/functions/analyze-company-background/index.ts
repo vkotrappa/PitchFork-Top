@@ -311,33 +311,61 @@ serve(async (req) => {
       console.log('No analysisReports provided');
     }
     
-    const analysisPromise = fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        companyId,
-        companyName,
-        analysisId,
-        analysisType,
-        prompt: promptText, // Pass the prompt (custom or system, with prefix applied)
-        documents: requestDocuments || [],
-        existingReports: existingReports || []
-      })
-    });
-
-    // Don't await the analysis - let it run in background
-    analysisPromise.then(async (response) => {
+    // Start the analysis in the background without blocking
+    // Use setTimeout to ensure the function returns immediately
+    setTimeout(async () => {
       try {
-        const responseText = await response.text();
-        console.log(`[BACKGROUND] Analysis response status: ${response.status}`);
-        console.log(`[BACKGROUND] Analysis response text length: ${responseText.length}`);
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            companyId,
+            companyName,
+            analysisId,
+            analysisType,
+            prompt: promptText, // Pass the prompt (custom or system, with prefix applied)
+            documents: requestDocuments || [],
+            existingReports: existingReports || []
+          })
+        });
         
-        if (!response.ok) {
-          const errorText = responseText.substring(0, 2000); // Increased from 500 to 2000
-          console.error(`[BACKGROUND] Analysis failed with status ${response.status}:`, errorText);
+        // Don't await the analysis - let it run in background
+        response.text().then(async (responseText) => {
+          try {
+            console.log(`[BACKGROUND] Analysis response status: ${response.status}`);
+            console.log(`[BACKGROUND] Analysis response text length: ${responseText.length}`);
+            
+            if (!response.ok) {
+              const errorText = responseText.substring(0, 2000); // Increased from 500 to 2000
+              console.error(`[BACKGROUND] Analysis failed with status ${response.status}:`, errorText);
+              
+              // Update analysis status to failed
+              await supabaseAdmin
+                .from('analysis')
+                .update({ 
+                  status: 'failed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', analysisId);
+            } else {
+              console.log('[BACKGROUND] Analysis completed successfully');
+              
+              // Update analysis status to Analyzed
+              await supabaseAdmin
+                .from('analysis')
+                .update({ 
+                  status: 'Analyzed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', analysisId);
+            }
+          } catch (error) {
+          console.error('[BACKGROUND] Error handling background analysis result:', error);
+          console.error('[BACKGROUND] Error details:', error instanceof Error ? error.message : String(error));
+          console.error('[BACKGROUND] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           
           // Update analysis status to failed
           await supabaseAdmin
@@ -347,22 +375,10 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', analysisId);
-        } else {
-          console.log('[BACKGROUND] Analysis completed successfully');
-          
-          // Update analysis status to Analyzed
-          await supabaseAdmin
-            .from('analysis')
-            .update({ 
-              status: 'Analyzed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', analysisId);
         }
-      } catch (error) {
-        console.error('[BACKGROUND] Error handling background analysis result:', error);
+      }).catch(async (error) => {
+        console.error('[BACKGROUND] Error reading response:', error);
         console.error('[BACKGROUND] Error details:', error instanceof Error ? error.message : String(error));
-        console.error('[BACKGROUND] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         
         // Update analysis status to failed
         await supabaseAdmin
@@ -372,11 +388,10 @@ serve(async (req) => {
             updated_at: new Date().toISOString()
           })
           .eq('id', analysisId);
-      }
-    }).catch(async (error) => {
-      console.error('[BACKGROUND] Background analysis promise failed:', error);
+      });
+    } catch (error) {
+      console.error('[BACKGROUND] Error starting background analysis:', error);
       console.error('[BACKGROUND] Error details:', error instanceof Error ? error.message : String(error));
-      console.error('[BACKGROUND] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
       // Update analysis status to failed
       await supabaseAdmin
@@ -386,7 +401,8 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', analysisId);
-    });
+    }
+    }, 0); // Execute immediately but asynchronously
 
     // Return immediately with analysis ID
     return new Response(

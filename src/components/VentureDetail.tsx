@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Building2, Calendar, User, Mail, Phone, FileText, ChevronDown, ChevronUp, MessageCircle, Send, Download, BarChart3, Users, Trash2, Eye, X, Loader2, Pencil } from 'lucide-react';
 import { supabase, getCurrentUser, signOut } from '../lib/supabase';
+import { calculateMatchScore, CompanyRecord, InvestorDetailRecord } from './InvestorCompanyMatch';
 
 interface VentureDetailProps {
   isDark: boolean;
@@ -44,22 +45,12 @@ interface Analysis {
   comments?: string;
   analyzed_at?: string;
   history?: string;
+  match_score?: number | string | null;
   investor_details?: {
     name: string;
     firm_name?: string;
   };
   scorecard_summary?: ScorecardSummaryData | null;
-}
-
-interface ScorecardSectionData {
-  score?: number;
-  summary?: string;
-  details?: string[];
-}
-
-interface ScorecardSummaryData {
-  summary?: string;
-  sections?: Record<string, ScorecardSectionData>;
 }
 
 interface AnalysisReport {
@@ -115,7 +106,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isCreatingDetailReportText, setIsCreatingDetailReportText] = useState(false);
   const [detailReportText, setDetailReportText] = useState<string | null>(null);
   const [detailReportTextUrl, setDetailReportTextUrl] = useState<string | null>(null);
-  const [activeScorecardTab, setActiveScorecardTab] = useState<string>('Summary');
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>('');
@@ -123,8 +113,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [customPrompts, setCustomPrompts] = useState<Set<string>>(new Set());
-  const [expandedScorecards, setExpandedScorecards] = useState<Set<string>>(new Set());
-  const [scorecardHtmlContent, setScorecardHtmlContent] = useState<Record<string, string>>({});
+  const [showMatchModal, setShowMatchModal] = useState(false);
+  const [matchDetails, setMatchDetails] = useState<{ score: number; summary: string[] } | null>(null);
 
   // Check authentication and load company data
   useEffect(() => {
@@ -147,12 +137,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
     
     checkAuthAndLoadData();
   }, [navigate, id]);
-
-  useEffect(() => {
-    if (analysis.length > 0 && analysis[0].scorecard_summary) {
-      setActiveScorecardTab('Summary');
-    }
-  }, [analysis]);
 
   const loadCompanyData = async (companyId: string) => {
     try {
@@ -1443,16 +1427,13 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
   const handleCreateDetailReport = async () => {
     if (!company || !id) {
-      alert('Company information not available');
-      return;
-    }
-
-    if (documents.length === 0) {
-      alert('No documents uploaded. Please upload at least one document first.');
+      setMessageStatus({ type: 'error', text: 'Company information not available' });
       return;
     }
 
     setIsCreatingDetailReport(true);
+    setMessageStatus({ type: 'success', text: 'Creating detailed report from existing analyses...' });
+    
     try {
       console.log('Creating detail report for company:', company.name);
 
@@ -1464,11 +1445,64 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
       // Get analysis ID
       let analysisId = analysis.length > 0 ? analysis[0].id : '';
+      
+      if (!analysisId) {
+        // Create analysis record if it doesn't exist
+        const { data: newAnalysis, error: analysisError } = await supabase
+          .from('analysis')
+          .insert([{
+            company_id: company.id,
+            investor_user_id: currentUser.id,
+            status: 'Screened'
+          }])
+          .select('id')
+          .single();
 
-      console.log('Documents for detail report:', documents);
+        if (analysisError) {
+          console.error('Error creating analysis record:', analysisError);
+          throw new Error('Failed to create analysis record');
+        }
+        analysisId = newAnalysis.id;
+      }
+
+      // Fetch the most recent analysis reports from Product, Market, Team, Financials, and Valuation
+      const reportTypes = ['product-analysis', 'market-analysis', 'team-analysis', 'financial-analysis', 'valuation-analysis'];
+      const recentAnalysisReports: Array<{ id: string; report_type: string; file_path: string; generated_at: string; }> = [];
+
+      for (const reportType of reportTypes) {
+        const { data: report, error } = await supabase
+          .from('analysis_reports')
+          .select('id, report_type, file_path, generated_at')
+          .eq('analysis_id', analysisId)
+          .eq('report_type', reportType)
+          .not('file_path', 'is', null)
+          .neq('file_path', '')
+          .order('generated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) {
+          console.error(`Error fetching ${reportType}:`, error);
+        } else if (report && report.file_path) {
+          recentAnalysisReports.push({
+            id: report.id,
+            report_type: report.report_type,
+            file_path: report.file_path,
+            generated_at: report.generated_at
+          });
+        }
+      }
+
+      if (recentAnalysisReports.length === 0) {
+        setMessageStatus({ type: 'error', text: 'No analysis reports available. Please run at least one analysis (Product, Market, Team, Financials, or Valuation) first.' });
+        setIsCreatingDetailReport(false);
+        return;
+      }
+
+      console.log('Most recent analysis reports fetched:', recentAnalysisReports);
 
       // Call the analyze-company-background function with detail-report type
-      // This routes through background processing to avoid timeouts
+      // Pass existing analysis reports instead of documents
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
@@ -1476,7 +1510,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
 
       // Use background function to avoid timeout issues
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-company-background`;
-      console.log('Calling background analysis function:', functionUrl);
+      console.log('Calling background analysis function for detail report:', functionUrl);
 
       const response = await fetch(
         functionUrl,
@@ -1491,11 +1525,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
             companyName: company.name,
             analysisId: analysisId,
             analysisType: 'detail-report',
-            documents: documents.map(doc => ({
-              id: doc.id || '',
-              name: doc.document_name || '',
-              path: doc.path || ''
-            }))
+            analysisReports: recentAnalysisReports
           }),
         }
       );
@@ -1521,10 +1551,10 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
         await loadAnalysisReports(id);
       }, 2000);
       
-      alert('Detail report creation started! The report will be generated in the background. Please refresh the page in a few moments to see the new report.');
+      setMessageStatus({ type: 'success', text: 'Detail report creation started! The report will be generated in the background using your existing analyses. Please refresh the page in a few moments to see the new report.' });
     } catch (error) {
       console.error('Error creating detail report:', error);
-      alert(`Failed to create detail report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setMessageStatus({ type: 'error', text: `Failed to create detail report: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setIsCreatingDetailReport(false);
     }
@@ -2170,8 +2200,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           </div>
         )}
 
-        {/* Scorecard Highlights temporarily hidden */}
-
         {/* Detail Report Text Output */}
         {detailReportText && (
           <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg shadow-lg p-6 mb-8`}>
@@ -2463,6 +2491,55 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                 </div>
               )}
 
+              {/* Match Score */}
+              {analysis.length > 0 && analysis[0].match_score !== null && analysis[0].match_score !== undefined && (
+                <div>
+                  <span className={`text-sm font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Match Score:{' '}
+                  </span>
+                  <span 
+                    className="text-sm font-medium text-blue-600 cursor-pointer hover:text-blue-800 hover:underline"
+                    onClick={async () => {
+                      if (!company) return;
+                      try {
+                        const currentUser = await getCurrentUser();
+                        if (!currentUser) return;
+
+                        const { data: investorData, error: investorError } = await supabase
+                          .from('investor_details')
+                          .select('*')
+                          .eq('user_id', currentUser.id)
+                          .maybeSingle();
+
+                        if (investorError || !investorData) {
+                          alert('Unable to load investor preferences.');
+                          return;
+                        }
+
+                        const matchResult = calculateMatchScore(company as CompanyRecord, investorData as InvestorDetailRecord);
+                        setMatchDetails({
+                          score: matchResult.score,
+                          summary: matchResult.summary
+                        });
+                        setShowMatchModal(true);
+                      } catch (error) {
+                        console.error('Error loading match details:', error);
+                        alert('Unable to load match details.');
+                      }
+                    }}
+                  >
+                    {typeof analysis[0].match_score === 'number' 
+                      ? analysis[0].match_score.toFixed(1)
+                      : typeof analysis[0].match_score === 'string' && !Number.isNaN(parseFloat(analysis[0].match_score))
+                        ? parseFloat(analysis[0].match_score).toFixed(1)
+                        : 'N/A'}
+                  </span>
+                  <span className={`text-xs ml-2 ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>
+                    (click for details)
+                  </span>
+                </div>
+              )}
+
               {/* Quick Message Input */}
               <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex gap-2">
@@ -2569,8 +2646,8 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           </div>
         )}
 
-        {/* Analysis Results Section */}
-        {analysis.length > 0 && (analysis[0].status === 'Screened' || analysis[0].status === 'Analyzed' || analysis[0].status === 'In-Diligence') && (
+        {/* Analysis Results Section - Hidden */}
+        {false && analysis.length > 0 && (analysis[0].status === 'Screened' || analysis[0].status === 'Analyzed' || analysis[0].status === 'In-Diligence') && (
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} mb-8`}>
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold text-blue-600 flex items-center">
@@ -2802,114 +2879,246 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
           </div>
         )}
 
-        {/* Analysis Reports Section - Always Visible if Reports Exist */}
-        {analysisReports.length > 0 && (
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} mb-8`}>
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-blue-600 flex items-center">
-                <BarChart3 className="w-5 h-5 mr-2" />
-                Generated Analysis Reports
-              </h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {analysisReports.map((report) => {
-                  const isScorecard = report.report_type === 'scorecard' || report.report_type === 'scorecard-analysis';
-                  const isExpanded = expandedScorecards.has(report.id);
-                  const hasHtmlContent = !!scorecardHtmlContent[report.id];
-                  
-                  return (
-                    <div key={report.id} className={`${isDark ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg border ${isDark ? 'border-gray-600' : 'border-gray-200'} ${isScorecard && isExpanded ? 'md:col-span-2' : ''}`}>
-                      <div className={`p-4 ${isScorecard && isExpanded ? 'border-b border-gray-300 dark:border-gray-600' : ''}`}>
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className={`font-semibold capitalize mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {report.report_type === 'summary' ? '📊 Summary Report' :
-                               report.report_type === 'detailed' ? '📈 Detailed Analysis' :
-                               report.report_type === 'team-analysis' ? 'Team Analysis' :
-                               report.report_type === 'feedback' ? '💬 Company Feedback' :
-                               isScorecard ? getScorecardDisplayName(report.report_type) :
-                               report.report_type.replace(/-/g, ' ')}
-                            </h4>
-                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-1`}>
-                              {report.file_name}
-                            </p>
-                            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              Generated: {new Date(report.generated_at).toLocaleDateString()} {new Date(report.generated_at).toLocaleTimeString()}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            {isScorecard && (
-                              <button
-                                onClick={() => toggleScorecardExpansion(report.id, report)}
-                                className={`p-2 rounded transition-colors flex-shrink-0 ${
-                                  isExpanded 
-                                    ? 'text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20' 
-                                    : 'text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/20'
-                                }`}
-                                title={isExpanded ? 'Collapse scorecard' : 'Expand scorecard'}
-                              >
-                                {isExpanded ? (
-                                  <ChevronUp className="w-4 h-4" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4" />
-                                )}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleViewPdf(report)}
-                              className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors flex-shrink-0"
-                              title="View PDF"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDownloadReport(report)}
-                              className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded transition-colors flex-shrink-0"
-                              title="Download report"
-                            >
-                              <Download className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteReport(report)}
-                              className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
-                              title="Delete report"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Scorecard HTML Display */}
-                      {isScorecard && isExpanded && (
-                        <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                          <div className="p-4">
-                            {hasHtmlContent ? (
-                              <div className="w-full" style={{ minHeight: '600px' }}>
-                                <iframe
-                                  src={scorecardHtmlContent[report.id]}
-                                  className="w-full border-0 rounded-lg"
-                                  style={{ height: '800px', minHeight: '600px' }}
-                                  title="Scorecard Report"
-                                />
-                              </div>
-                            ) : (
-                              <div className={`p-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                                <p>Loading scorecard...</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+        {/* Analysis Reports Section - Split into Component and Comprehensive Reports */}
+        {analysisReports.length > 0 && (() => {
+          // Helper function to get report title for sorting
+          const getReportTitle = (reportType: string): string => {
+            return (reportType || 'Report').replace(/-/g, ' ').toLowerCase();
+          };
+
+          // Helper function to sort reports by title, then by date (descending)
+          const sortReports = (reports: typeof analysisReports) => {
+            return [...reports].sort((a, b) => {
+              const titleA = getReportTitle(a.report_type);
+              const titleB = getReportTitle(b.report_type);
+              
+              // First sort by title
+              if (titleA !== titleB) {
+                return titleA.localeCompare(titleB);
+              }
+              
+              // If titles are equal, sort by date descending
+              return new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime();
+            });
+          };
+
+          // Component Reports: Product, Market, Team, Financials
+          const componentReportTypes = ['product-analysis', 'market-analysis', 'team-analysis', 'financial-analysis'];
+          const componentReports = sortReports(
+            analysisReports.filter(report => 
+              componentReportTypes.includes((report.report_type || '').toLowerCase())
+            )
+          );
+
+          // Comprehensive Reports: Score Card, Detailed Report, Diligence Questions, Valuation Report, Founder Report
+          const comprehensiveReportTypes = ['scorecard', 'detail-report', 'diligence-questions', 'valuation-analysis', 'founder-report'];
+          const comprehensiveReports = sortReports(
+            analysisReports.filter(report => 
+              comprehensiveReportTypes.includes((report.report_type || '').toLowerCase())
+            )
+          );
+
+          // Helper function to render a report card
+          const renderReportCard = (report: typeof analysisReports[0]) => {
+            const isScorecard = (report.report_type || '').toLowerCase().includes('scorecard');
+            const isFounderReport = (report.report_type || '').toLowerCase().includes('founder-report');
+            return (
+              <div
+                key={report.id}
+                className={`${isDark ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}
+              >
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <h4 className={`font-semibold capitalize mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {(report.report_type || 'Report').replace(/-/g, ' ')}
+                      </h4>
+                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-1`}>
+                        {report.file_name}
+                      </p>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Generated: {new Date(report.generated_at).toLocaleDateString()}{' '}
+                        {new Date(report.generated_at).toLocaleTimeString()}
+                      </p>
                     </div>
-                  );
-                })}
+                    <div className="flex gap-2">
+                      {isFounderReport && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (!report.file_path) {
+                                alert('Report file not found');
+                                return;
+                              }
+
+                              // Get public URL for the PDF
+                              const { data: urlData } = supabase.storage
+                                .from('analysis-output-docs')
+                                .getPublicUrl(report.file_path);
+
+                              if (!urlData?.publicUrl) {
+                                alert('Unable to generate report URL');
+                                return;
+                              }
+
+                              // Get session for authentication
+                              const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                              if (sessionError || !session?.access_token) {
+                                alert('Authentication required. Please log in again.');
+                                return;
+                              }
+
+                              // Call email function
+                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
+                              const functionUrl = `${supabaseUrl}/functions/v1/send-email`;
+                              
+                              const emailResponse = await fetch(functionUrl, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${session.access_token}`,
+                                },
+                                body: JSON.stringify({
+                                  toEmail: 'vkotrappa@gmail.com',
+                                  toName: 'Founder',
+                                  subject: 'PitchFork: Founder Report',
+                                  body: 'Thank you for your submission to PitchFork. Here is your feedback.\n\n--- PitchFork',
+                                  senderName: 'PitchFork',
+                                  companyName: company?.name || 'PitchFork',
+                                  messageType: 'founder',
+                                  pdfUrl: urlData.publicUrl,
+                                  pdfFileName: report.file_name || 'founder-report.pdf'
+                                })
+                              });
+
+                              if (!emailResponse.ok) {
+                                const errorText = await emailResponse.text();
+                                console.error('Failed to send email:', errorText);
+                                alert('Failed to send email. Please try again.');
+                                return;
+                              }
+
+                              setMessageStatus({ type: 'success', text: 'Founder report sent by email successfully!' });
+                              setTimeout(() => setMessageStatus(null), 3000);
+                            } catch (error) {
+                              console.error('Error sending founder report email:', error);
+                              alert('Failed to send email. Please try again.');
+                            }
+                          }}
+                          className="p-2 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/20 rounded transition-colors flex-shrink-0"
+                          title="Send Founder Report by Email"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (!report.file_path) {
+                            alert('Report file not found');
+                            return;
+                          }
+                          const { data: urlData } = supabase.storage
+                            .from('analysis-output-docs')
+                            .getPublicUrl(report.file_path);
+                          if (urlData?.publicUrl) {
+                            setPdfUrl(urlData.publicUrl);
+                            setPdfFileName(report.file_name);
+                            setShowPdfModal(true);
+                          }
+                        }}
+                        className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors flex-shrink-0"
+                        title="View PDF"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!report.file_path) {
+                            alert('Report file not found');
+                            return;
+                          }
+                          const { data: urlData } = supabase.storage
+                            .from('analysis-output-docs')
+                            .getPublicUrl(report.file_path);
+                          if (urlData?.publicUrl) {
+                            window.open(urlData.publicUrl, '_blank');
+                          }
+                        }}
+                        className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded transition-colors flex-shrink-0"
+                        title="Download report"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Are you sure you want to delete this report?')) return;
+                          try {
+                            const { error } = await supabase
+                              .from('analysis_reports')
+                              .delete()
+                              .eq('id', report.id);
+                            if (error) throw error;
+                            await loadAnalysisReports(id!);
+                          } catch (error) {
+                            console.error('Error deleting report:', error);
+                            alert('Failed to delete report');
+                          }
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
+                        title="Delete report"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {isScorecard && (
+                    <p className={`text-xs italic ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      View detailed results in the Scorecard Highlights section above.
+                    </p>
+                  )}
+                </div>
               </div>
+            );
+          };
+
+          return (
+            <div className="space-y-8 mb-8">
+              {/* Component Reports Section */}
+              {componentReports.length > 0 && (
+                <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-xl font-bold text-blue-600 flex items-center">
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Component Reports
+                    </h2>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {componentReports.map(renderReportCard)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Comprehensive Reports Section */}
+              {comprehensiveReports.length > 0 && (
+                <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-xl font-bold text-blue-600 flex items-center">
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Comprehensive Reports
+                    </h2>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {comprehensiveReports.map(renderReportCard)}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Uploaded Documents Section - Always Visible */}
         {documents.length > 0 && (
@@ -3221,6 +3430,99 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                 }}
                 onDragStart={(e) => e.preventDefault()}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Match Details Modal */}
+      {showMatchModal && matchDetails && company && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50"
+            onClick={() => setShowMatchModal(false)}
+          />
+          <div className={`relative ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto`}>
+            <div className="sticky top-0 p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-inherit">
+              <h2 className="text-2xl font-bold text-blue-600">
+                Match Score Details: {company.name}
+              </h2>
+              <button
+                onClick={() => setShowMatchModal(false)}
+                className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-1">{company.name}</h3>
+                    {company.industry && (
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {company.industry}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm uppercase tracking-wide font-semibold text-gray-500 mb-1">
+                      Match Score
+                    </div>
+                    <div className="text-4xl font-bold text-green-500">
+                      {matchDetails.score.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className={`text-lg font-semibold mb-4 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                  How the Match Was Calculated
+                </h4>
+                <div className="space-y-3">
+                  {matchDetails.summary.map((detail, index) => {
+                    const isMismatch = detail.toLowerCase().includes('no overlap') ||
+                      detail.toLowerCase().includes('did not provide') ||
+                      detail.toLowerCase().includes('below target') ||
+                      detail.toLowerCase().includes('not provided') ||
+                      detail.toLowerCase().includes('outside preferred') ||
+                      detail.toLowerCase().includes('no match');
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className={`flex items-start space-x-3 p-3 rounded-lg ${
+                          isDark ? 'bg-gray-700' : 'bg-gray-50'
+                        }`}
+                      >
+                        <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                          isMismatch ? 'bg-red-500' : 'bg-blue-500'
+                        }`} />
+                        <span className={`text-sm ${
+                          isMismatch 
+                            ? isDark ? 'text-red-400' : 'text-red-600'
+                            : isDark ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                          {detail}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="sticky bottom-0 p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-inherit">
+              <button
+                onClick={() => setShowMatchModal(false)}
+                className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
+                  isDark 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

@@ -110,13 +110,24 @@ export default function InvestorSelection({ companyId, onComplete, onCancel }: I
         selectedInvestors.has(match.investor.user_id)
       );
 
-      const analysisEntries = selectedMatches.map((match) => ({
-        company_id: companyId,
-        investor_user_id: match.investor.user_id,
-        status: 'screened',
-        match_score: match.score,
-        history: `${currentDate}: Screened (matched by founder)`,
-      }));
+      const analysisEntries = selectedMatches.map((match) => {
+        // Set recommendation based on match_score
+        let recommendation: string | null = null;
+        if (match.score > 6) {
+          recommendation = 'Analyze';
+        } else if (match.score < 5) {
+          recommendation = 'Reject';
+        }
+        
+        return {
+          company_id: companyId,
+          investor_user_id: match.investor.user_id,
+          status: 'screened',
+          match_score: match.score,
+          recommendation: recommendation,
+          history: `${currentDate}: Screened (matched by founder)`,
+        };
+      });
 
       const { error: insertError } = await supabase
         .from('analysis')

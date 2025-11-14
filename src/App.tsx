@@ -77,8 +77,8 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
   const benefits = [
     {
       icon: <Target className="w-8 h-8 text-blue-600" />,
-      title: "Automated Screening",
-      description: "Set your criteria (revenue, industry, geography, stage) and automatically filter proposals before deep analysis"
+      title: "Intelligent Matching",
+      description: "AI automatically matches founders with investors based on investment criteria, industry focus, and preferences—the platform's \"wow\" factor"
     },
     {
       icon: <Zap className="w-8 h-8 text-blue-600" />,
@@ -120,44 +120,39 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
     },
     {
       step: "2",
+      title: "Intelligent Matching",
+      description: "AI matches founders with investors based on investment criteria, industry focus, and preferences—the platform's \"wow\" factor"
+    },
+    {
+      step: "3",
       title: "Automated Screening",
       description: "AI filters proposals against your custom criteria (revenue, industry, geography, stage) before deep analysis"
     },
     {
-      step: "3",
-      title: "4-Category Deep Dive",
-      description: "AI analyzes Product/Service fit, Market dynamics, Leadership Team capabilities, and Financial health with 16 subcategories"
-    },
-    {
       step: "4",
-      title: "Comprehensive Scoring",
-      description: "Generate detailed score cards with category ratings, overall scores, and investment recommendations"
+      title: "4-Category AI Analysis",
+      description: "AI analyzes Product/Service fit, Market dynamics, Leadership Team capabilities, and Financial health with 16 subcategories—all in minutes"
     },
     {
       step: "5",
-      title: "Diligence Questions",
-      description: "AI generates targeted questions for further investigation based on analysis findings and identified gaps"
+      title: "Sophisticated Report Generation",
+      description: "Generate comprehensive reports in minutes: scorecards, detailed analysis, diligence questions, and founder feedback—all as professional PDFs"
     },
     {
       step: "6",
-      title: "Reports & Feedback",
-      description: "Generate professional PDF reports (scorecards, detailed analysis, diligence questions, founder feedback) with real-time status tracking"
-    },
-    {
-      step: "7",
-      title: "Custom Prompts",
-      description: "Personalize your analysis by creating custom prompts for each category, with voice input support for quick customization"
+      title: "Investment Decision",
+      description: "Make informed decisions with comprehensive scoring, recommendations, and detailed analysis reports—evaluate 10x deals in 1/10th the time"
     }
   ];
 
   const faqs = [
     {
-      question: "What makes PitchFork's analysis unique?",
-      answer: "PitchFork combines submitted documents (pitch decks, financials, patents) with public data (websites, LinkedIn, publications) to provide a comprehensive 4-category analysis covering 16 detailed subcategories across Product/Service, Market, Leadership Team, and Financials."
+      question: "What makes PitchFork unique?",
+      answer: "PitchFork's 'wow' factor is intelligent investor-founder matching combined with sophisticated report generation in minutes. The platform automatically matches founders with relevant investors based on investment criteria, then generates comprehensive AI-powered analysis reports covering 16 detailed subcategories across Product/Service, Market, Leadership Team, and Financials—all in minutes, not hours."
     },
     {
       question: "What reports can I generate?",
-      answer: "Generate four types of professional PDF reports: (1) Comprehensive Score Cards with category ratings, (2) Detailed Analysis Reports with deep insights, (3) Diligence Questions for follow-up investigation, and (4) Founder Feedback Reports to share with entrepreneurs. All reports are generated with high-quality HTML-to-PDF formatting and automatically update with real-time status tracking."
+      answer: "Generate sophisticated reports in minutes: (1) Comprehensive Score Cards with category ratings and detailed breakdowns, (2) Detailed Analysis Reports combining all analysis reports with full details preserved, (3) Diligence Questions for targeted follow-up investigation, and (4) Founder Feedback Reports to share with entrepreneurs. All reports are generated as professional PDFs with high-quality formatting and preserve all details from your analysis reports."
     },
     {
       question: "Can I customize the AI analysis prompts?",
@@ -185,25 +180,22 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
   ];
 
   return (
-    <div className={`min-h-screen font-body transition-colors duration-300 ${isDark ? 'bg-navy-950 text-silver-100' : 'bg-silver-50 text-slate-900'}`}>
+    <div className={`min-h-screen font-body font-aptos transition-colors duration-300 ${isDark ? 'bg-navy-950 text-silver-100' : 'bg-silver-50 text-slate-900'}`}>
       {/* Navigation */}
       <nav className={`sticky top-0 z-50 ${isDark ? 'bg-navy-900/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDark ? 'border-navy-700' : 'border-silver-200'} shadow-financial`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
-              <div className="text-2xl font-bold text-blue-600">
-                Pitch Fork
+              <div className="text-4xl font-bold text-gray-600 dark:text-gray-400">
+                PitchFork
               </div>
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
               <span className="text-blue-600 font-semibold">
-                Founders: Sign-Up to Submit your pitch deck
+                Investors &amp; Founders:
               </span>
-              <Link to="/help" className={`${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} transition-colors font-semibold`}>
-                Help
-              </Link>
               <Link to="/login" className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-all duration-300 shadow-lg font-semibold">
                 Login/Sign-Up
               </Link>
@@ -235,16 +227,9 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
             <div className="px-4 py-4 space-y-4">
               <div className="text-center">
                 <span className="text-blue-600 font-semibold">
-                  Founders: Sign-Up to Submit your pitch deck
+                  Investors &amp; Founders:
                 </span>
               </div>
-              <Link 
-                to="/help" 
-                className={`w-full ${isDark ? 'text-silver-300 hover:text-white' : 'text-navy-700 hover:text-navy-900'} block text-center font-semibold py-2 transition-colors`}
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Help
-              </Link>
               <Link to="/login" className="w-full bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 block text-center font-semibold">
                 Login/Sign-Up
               </Link>
@@ -259,41 +244,40 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             {/* Left Column - Text Content */}
             <div className="text-left relative">
+              <p className="text-2xl md:text-3xl font-inter italic mb-2 text-slate-900 dark:text-silver-100">
+                Open Innovation
+              </p>
               <h1 className="text-4xl md:text-5xl font-inter font-bold mb-4 text-blue-600">
                 AI-Driven VC Investment Platform
               </h1>
               <h2 className="text-2xl md:text-3xl font-inter font-bold mb-6 text-slate-900 dark:text-silver-100">
-                Screening and Comprehensive <span className="whitespace-nowrap">4-Category</span> Analysis in Minutes
+                Smart Screening, Analysis &amp; Evaluation in Minutes
               </h2>
               <p className="text-lg mb-6 text-slate-600 dark:text-silver-300 leading-relaxed font-body">
-                Customizable AI analysis of Product, Market, Team, and Financials so you can evaluate 10x deals in 1/10th the time.
+                <strong>Investors:</strong> Customizable AI analysis of Product, Market, Team, and Financials so you can evaluate 10x deals in 1/10th the time.<br />
+                <strong>Founders:</strong> AI Driven matching to investors and prompt feedback.
               </p>
-              <p className="text-base mb-4 text-slate-600 dark:text-silver-300">
-                We are launching in phases. We welcome Investors and Founders to join us.{' '}
-                <a
-                  href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-                >
-                  Click here
-                </a>
-                :
-              </p>
-              <div className="flex items-center gap-4">
-                <a
-                  href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg"
-                >
-                  Join our List <ChevronRight className="inline w-5 h-5 ml-2" />
-                </a>
-                <img
-                  src="/PitchFork-QRCode.png"
-                  alt="Join PitchFork Interest List QR Code"
-                  className="w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center mb-4">
+                <div>
+                  <p className="text-base text-slate-600 dark:text-silver-300">
+                    We are launching in phases. We welcome Investors and Founders to join us.
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <a
+                    href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg"
+                  >
+                    Join our List <ChevronRight className="inline w-5 h-5 ml-2" />
+                  </a>
+                  <img
+                    src="/PitchFork-QRCode.png"
+                    alt="Join PitchFork Interest List QR Code"
+                    className="w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                  />
+                </div>
               </div>
 
               {/* Social Proof */}
@@ -327,7 +311,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           <div className="text-center mb-12">
             <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">Why Choose PitchFork?</h2>
             <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} max-w-3xl mx-auto font-body`}>
-              Automated screening, 4-category AI analysis, public data integration, and instant reports with founder feedback
+              Intelligent investor-founder matching, automated screening, 4-category AI analysis, and sophisticated report generation in minutes
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -348,7 +332,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           <div className="text-center mb-12">
             <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">The PitchFork Workflow</h2>
             <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} max-w-3xl mx-auto font-body`}>
-              From founder submission to investment decision with AI-powered analysis and feedback
+              From intelligent investor-founder matching to sophisticated report generation in minutes—streamlined deal evaluation powered by AI
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

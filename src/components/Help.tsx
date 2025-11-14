@@ -231,30 +231,32 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
             What is PitchFork?
           </h2>
           <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-4 leading-relaxed font-semibold text-lg`}>
-            PitchFork is an AI Driven VC-Investor Platform
+            PitchFork is an AI-Driven VC Investment Platform with intelligent investor-founder matching and sophisticated report generation in minutes.
           </p>
           
           <div className="space-y-4 mb-6">
             <div>
               <h3 className="font-bold text-lg mb-2 text-blue-600">For Founders:</h3>
               <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}>
-                Provides a platform to submit your pitch deck and other information (financials, patent documents, market research, etc.) 
-                for evaluation and consideration from selected investors – <strong>AND receive detailed feedback</strong> on your company and pitch.
+                Submit your pitch deck and company information to be intelligently matched with relevant investors based on their investment criteria. 
+                Receive detailed AI-powered feedback on your company and pitch, helping you improve and connect with the right investors.
               </p>
             </div>
 
             <div>
               <h3 className="font-bold text-lg mb-2 text-blue-600">For Investors:</h3>
               <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}>
-                Provides an AI-driven platform to receive, screen, analyze, evaluate, and diligence companies using comprehensive analysis 
-                based on specific industry context, submitted documents, and public information including websites, publications, LinkedIn profiles, and more.
+                Get matched with founders that align with your investment criteria. Use AI-powered analysis to screen, evaluate, and diligence companies 
+                with comprehensive reports generated in minutes. Analyze companies across Product, Market, Team, and Financials using submitted documents 
+                and public information (websites, publications, LinkedIn profiles, and more).
               </p>
             </div>
           </div>
 
           <div className={`${isDark ? 'bg-blue-900/20' : 'bg-blue-50'} border ${isDark ? 'border-blue-800' : 'border-blue-200'} rounded-lg p-4`}>
             <p className={`${isDark ? 'text-blue-300' : 'text-blue-900'} font-semibold`}>
-              Key Benefit: Analyze companies in fields you're not an expert in with confidence, scale your deal flow, and never miss a hidden gem.
+              <strong>The &quot;Wow&quot; Factor:</strong> Intelligent investor-founder matching ensures you see the most relevant opportunities, while sophisticated 
+              AI analysis generates comprehensive reports in minutes—evaluate 10x deals in 1/10th the time.
             </p>
           </div>
         </div>
@@ -296,18 +298,18 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                     2
                   </div>
                   <div className="flex-grow">
-                    <h3 className="text-xl font-semibold mb-2">Automated Screening & Review</h3>
+                    <h3 className="text-xl font-semibold mb-2">Intelligent Matching & Automated Screening</h3>
                     <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
-                      From your <strong>Dashboard</strong>, you'll see all venture proposals with their analysis status. 
-                      The platform automatically screens submissions based on your criteria, saving time by filtering non-matches:
+                      <strong className="text-blue-600 dark:text-blue-400">The Platform&apos;s &quot;Wow&quot; Factor:</strong> Founders are automatically matched with investors 
+                      based on investment criteria, industry focus, and preferences. From your <strong>Dashboard</strong>, you'll see matched venture proposals 
+                      with their analysis status. The platform automatically screens submissions based on your criteria, saving time by filtering non-matches:
                     </p>
                     <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-1`}>
-                      <li><strong>Open:</strong> New proposals awaiting initial screening</li>
+                      <li><strong>Submitted:</strong> New proposals awaiting initial screening</li>
                       <li><strong>Screened:</strong> Proposals that passed your criteria filter</li>
-                      <li><strong>Analyzing:</strong> AI analysis in progress</li>
-                      <li><strong>Reject:</strong> Proposals that don't meet your criteria or analysis</li>
-                      <li><strong>Diligence:</strong> Promising ventures for deeper review</li>
-                      <li><strong>Invest:</strong> Top candidates recommended for investment</li>
+                      <li><strong>Analyzed:</strong> AI analysis completed</li>
+                      <li><strong>In-Diligence:</strong> Promising ventures for deeper review</li>
+                      <li><strong>Rejected:</strong> Proposals that don't meet your criteria or analysis</li>
                     </ul>
                   </div>
                 </div>
@@ -375,28 +377,29 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
                     4
                   </div>
                   <div className="flex-grow">
-                    <h3 className="text-xl font-semibold mb-2">Analysis & Report Generation</h3>
+                    <h3 className="text-xl font-semibold mb-2">Sophisticated Report Generation in Minutes</h3>
                     <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-3`}>
-                      On the Venture Detail page, you'll find organized action buttons:
+                      <strong className="text-blue-600 dark:text-blue-400">Generate comprehensive reports in minutes, not hours.</strong> On the Venture Detail page, you'll find organized action buttons:
                     </p>
                     <ul className={`list-disc list-inside ${isDark ? 'text-gray-400' : 'text-gray-600'} ml-4 space-y-2 mb-3`}>
-                      <li><strong>Analyze:</strong> Run individual analysis reports (Product, Market, Team, Financials). 
+                      <li><strong>Analyze:</strong> Run individual analysis reports (Product, Market, Team, Financials, Valuation). 
                       Button colors indicate status: <span className="font-semibold">Blue</span> (not started), 
                       <span className="font-semibold text-yellow-500"> Yellow</span> (in progress), 
                       <span className="font-semibold text-green-500"> Green</span> (completed)</li>
-                      <li><strong>Create:</strong> Generate comprehensive reports after all 4 analyses are complete:
+                      <li><strong>Create:</strong> Generate sophisticated reports in minutes after analyses are complete:
                         <ul className="ml-6 mt-1 space-y-1">
-                          <li>Score Card - Overall evaluation scores across all categories</li>
-                          <li>Detail Report - In-depth analysis document</li>
-                          <li>Diligence Questions - AI-generated follow-up questions</li>
-                          <li>Founder Report - Feedback to share with entrepreneurs</li>
+                          <li><strong>Score Card</strong> - Overall evaluation scores across all categories with detailed breakdowns</li>
+                          <li><strong>Detail Report</strong> - Comprehensive analysis document combining all reports with full details preserved</li>
+                          <li><strong>Diligence Questions</strong> - AI-generated targeted follow-up questions based on analysis findings</li>
+                          <li><strong>Founder Report</strong> - Constructive feedback to share with entrepreneurs</li>
                         </ul>
                       </li>
-                      <li><strong>Action:</strong> Move companies to Diligence or Reject status</li>
+                      <li><strong>Action:</strong> Move companies to Diligence or Reject status based on your evaluation</li>
                     </ul>
                     <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       All reports are generated as professional PDFs using high-quality HTML-to-PDF formatting with proper styling, tables, and formatting.
-                      The system automatically polls for completion, so buttons update in real-time without manual refresh.
+                      Reports are created in minutes by combining existing analysis reports, preserving all details. The system automatically polls for completion, 
+                      so buttons update in real-time without manual refresh.
                     </p>
                   </div>
                 </div>

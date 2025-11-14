@@ -10,6 +10,8 @@ interface RequestBody {
   senderName?: string;
   companyName?: string;
   messageType?: 'admin' | 'investor' | 'founder' | 'general';
+  pdfUrl?: string;
+  pdfFileName?: string;
 }
 
 serve(async (req) => {
@@ -53,7 +55,9 @@ serve(async (req) => {
       body,
       senderName = 'Admin@PitchFork.com',
       companyName = 'PitchFork Platform',
-      messageType = 'general'
+      messageType = 'general',
+      pdfUrl,
+      pdfFileName
     }: RequestBody = requestBody;
 
     console.log('Request parameters:', {
@@ -212,15 +216,90 @@ This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
 
     console.log('Connecting to Gmail SMTP...');
     
+    // Download PDF if URL is provided
+    let pdfAttachment: { filename: string; content: Uint8Array; contentType?: string } | undefined;
+    if (pdfUrl) {
+      try {
+        console.log('Downloading PDF from URL:', pdfUrl);
+        const pdfResponse = await fetch(pdfUrl);
+        if (pdfResponse.ok) {
+          const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+          pdfAttachment = {
+            filename: pdfFileName || 'founder-report.pdf',
+            content: new Uint8Array(pdfArrayBuffer),
+            contentType: 'application/pdf'
+          };
+          console.log('PDF downloaded successfully, size:', pdfArrayBuffer.byteLength, 'bytes');
+        } else {
+          console.warn('Failed to download PDF, status:', pdfResponse.status, 'continuing without attachment');
+        }
+      } catch (error) {
+        console.error('Error downloading PDF:', error);
+        // Continue without attachment
+      }
+    }
+
     // Add timeout to prevent hanging
     const sendEmailWithTimeout = async () => {
+      let emailContent = emailBody;
+      
+      // If we have an attachment, construct a MIME multipart message
+      if (pdfAttachment) {
+        console.log('Constructing MIME multipart message with attachment');
+        
+        // Generate boundary for multipart message
+        const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        
+        // Convert PDF to base64 (handle large files in chunks)
+        let base64Content = '';
+        const chunkSize = 8192; // Process in chunks to avoid stack overflow
+        for (let i = 0; i < pdfAttachment.content.length; i += chunkSize) {
+          const chunk = pdfAttachment.content.slice(i, i + chunkSize);
+          base64Content += btoa(String.fromCharCode(...chunk));
+        }
+        
+        // Split base64 into lines (76 characters per line for email compatibility)
+        const base64Lines = base64Content.match(/.{1,76}/g) || [];
+        const formattedBase64 = base64Lines.join('\r\n');
+        
+        // Construct multipart message
+        emailContent = [
+          `--${boundary}`,
+          'Content-Type: text/plain; charset=utf-8',
+          'Content-Transfer-Encoding: 7bit',
+          '',
+          emailBody,
+          `--${boundary}`,
+          `Content-Type: ${pdfAttachment.contentType || 'application/pdf'}`,
+          'Content-Transfer-Encoding: base64',
+          `Content-Disposition: attachment; filename="${pdfAttachment.filename}"`,
+          '',
+          formattedBase64,
+          `--${boundary}--`
+        ].join('\r\n');
+        
+        console.log('MIME message constructed, total size:', emailContent.length, 'characters');
+      }
+      
+      const emailOptions: any = {
+        from: 'pitchforkmanager@gmail.com',
+        to: toEmail,
+        subject: subject,
+        content: emailContent,
+      };
+
+      // Add Content-Type header for multipart messages
+      if (pdfAttachment) {
+        const boundary = emailContent.match(/^----=_Part_\d+_\w+/m)?.[0];
+        if (boundary) {
+          emailOptions.headers = {
+            'Content-Type': `multipart/mixed; boundary="${boundary}"`
+          };
+        }
+      }
+
       return await Promise.race([
-        client.send({
-          from: 'pitchforkmanager@gmail.com',
-          to: toEmail,
-          subject: subject,
-          content: emailBody,
-        }),
+        client.send(emailOptions),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('SMTP timeout after 30 seconds')), 30000)
         )

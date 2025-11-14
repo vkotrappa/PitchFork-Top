@@ -18,3 +18,6 @@ COMMENT ON COLUMN analysis_reports.financials_score IS 'Stores Financials Analys
 
 
 
+
+
+

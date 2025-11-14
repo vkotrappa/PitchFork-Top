@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, BarChart3, Loader } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import { calculateMatchScore, CompanyRecord, InvestorDetailRecord, MatchResult } from './InvestorCompanyMatch';
 
 interface CompanyInvestorMatchProps {
   isDark: boolean;
@@ -24,6 +25,14 @@ interface InvestorMatch {
   summary: string[];
 }
 
+interface CompanyMatch {
+  companyId: string;
+  name: string;
+  industry?: string;
+  score: number;
+  summary: string[];
+}
+
 const CompanyInvestorMatch: React.FC<CompanyInvestorMatchProps> = ({ isDark, toggleTheme }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -31,6 +40,8 @@ const CompanyInvestorMatch: React.FC<CompanyInvestorMatchProps> = ({ isDark, tog
   const [error, setError] = useState<string | null>(null);
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [matchResults, setMatchResults] = useState<InvestorMatch[]>([]);
+  const [companyMatches, setCompanyMatches] = useState<CompanyMatch[]>([]);
+  const [isInvestorView, setIsInvestorView] = useState(false);
 
   const companyIdFromUrl = useMemo(() => {
     const param = searchParams.get('companyId');
@@ -51,13 +62,70 @@ const CompanyInvestorMatch: React.FC<CompanyInvestorMatchProps> = ({ isDark, tog
           return;
         }
 
+        // Check if user is an investor
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('user_type')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+
         const companyId = companyIdFromUrl;
+        
+        // If no companyId and user is an investor, match companies to investor
+        if (!companyId && profile?.user_type === 'investor') {
+          setIsInvestorView(true);
+          
+          // Load investor details
+          const { data: investorData, error: investorError } = await supabase
+            .from('investor_details')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+
+          if (investorError || !investorData) {
+            setError('Unable to load investor preferences. Please update your preferences first.');
+            setIsLoading(false);
+            return;
+          }
+
+          // Load all companies
+          const { data: companiesData, error: companiesError } = await supabase
+            .from('companies')
+            .select('*');
+
+          if (companiesError) {
+            setError('Unable to load companies.');
+            setIsLoading(false);
+            return;
+          }
+
+          // Match companies to investor
+          const matches: CompanyMatch[] = (companiesData || []).map((company) => {
+            const matchResult = calculateMatchScore(company as CompanyRecord, investorData as InvestorDetailRecord);
+            return {
+              companyId: company.id,
+              name: company.name,
+              industry: company.industry || undefined,
+              score: matchResult.score,
+              summary: matchResult.summary,
+            };
+          });
+
+          // Sort by score descending
+          matches.sort((a, b) => b.score - a.score);
+          setCompanyMatches(matches);
+          setIsLoading(false);
+          return;
+        }
+
+        // Original logic: match investors to company
         if (!companyId) {
           setError('Company information not found. Please open the matcher from your dashboard.');
           setIsLoading(false);
           return;
         }
 
+        setIsInvestorView(false);
         const { data, error: functionError } = await supabase.functions.invoke('company-investor-match', {
           body: { companyId },
         });
@@ -105,7 +173,9 @@ const CompanyInvestorMatch: React.FC<CompanyInvestorMatchProps> = ({ isDark, tog
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Dashboard
               </button>
-              <h1 className="text-lg font-semibold text-blue-500">Company Match Scores</h1>
+              <h1 className="text-lg font-semibold text-blue-500">
+                {isInvestorView ? 'Company Matches' : 'Company Match Scores'}
+              </h1>
             </div>
             <button
               onClick={toggleTheme}
@@ -135,7 +205,64 @@ const CompanyInvestorMatch: React.FC<CompanyInvestorMatchProps> = ({ isDark, tog
           </div>
         )}
 
-        {!isLoading && !error && company && (
+        {!isLoading && !error && isInvestorView && (
+          <section>
+            {companyMatches.length === 0 ? (
+              <div className={`${isDark ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white border-gray-200 text-gray-600'} border rounded-lg p-10 text-center`}>
+                No companies available for matching yet.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {companyMatches.map((match, index) => (
+                  <div
+                    key={match.companyId}
+                    className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg shadow-sm p-6`}
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div>
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <h3 className="text-xl font-semibold">
+                              {match.name}
+                            </h3>
+                            {match.industry && (
+                              <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {match.industry}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                            #{index + 1}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm uppercase tracking-wide font-semibold text-gray-500">
+                          Match Score
+                        </div>
+                        <div className="text-3xl font-bold text-green-500">
+                          {match.score.toFixed(1)}
+                        </div>
+                      </div>
+                    </div>
+                    {match.summary.length > 0 && (
+                      <ul className={`mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {match.summary.map((line, idx) => (
+                          <li key={idx} className="flex items-start space-x-2">
+                            <span className="mt-1 w-2 h-2 rounded-full bg-blue-500" />
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {!isLoading && !error && !isInvestorView && company && (
           <>
             <section className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg shadow-lg p-6 mb-8`}>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, TrendingUp, Users, Clock, CheckCircle, XCircle, Filter, Calendar, Building2, ChevronDown, User } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Users, Clock, CheckCircle, XCircle, Filter, Calendar, Building2, ChevronDown, User, X } from 'lucide-react';
 import { signOut, getCurrentUser, supabase } from '../lib/supabase';
 import { analyzeCompany, generateReportPDFs, saveAnalysisReports } from '../lib/analysisService';
+import { calculateMatchScore, CompanyRecord, InvestorDetailRecord } from './InvestorCompanyMatch';
 
 interface DashboardProps {
   isDark: boolean;
@@ -40,7 +41,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
     screened: true,
     analyzed: true,
     inDiligence: true,
-    rejected: true
+    rejected: true,
+    failed: true
   });
   
   const [itemsToShow, setItemsToShow] = React.useState('10');
@@ -52,6 +54,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
   const [companies, setCompanies] = React.useState<Company[]>([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = React.useState(true);
   const [analyzingCompanies, setAnalyzingCompanies] = React.useState<Set<string>>(new Set());
+  const [showMatchModal, setShowMatchModal] = React.useState(false);
+  const [selectedMatchDetails, setSelectedMatchDetails] = React.useState<{ company: Company; score: number; summary: string[] } | null>(null);
 
   // Check authentication on component mount
   React.useEffect(() => {
@@ -261,6 +265,38 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
     navigate(`/venture/${companyId}`);
   };
 
+  const handleShowMatchDetails = async (company: Company, matchScore: number) => {
+    try {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) return;
+
+      // Load investor details
+      const { data: investorData, error: investorError } = await supabase
+        .from('investor_details')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+
+      if (investorError || !investorData) {
+        alert('Unable to load investor preferences.');
+        return;
+      }
+
+      // Calculate match details
+      const matchResult = calculateMatchScore(company as CompanyRecord, investorData as InvestorDetailRecord);
+      
+      setSelectedMatchDetails({
+        company,
+        score: matchResult.score,
+        summary: matchResult.summary
+      });
+      setShowMatchModal(true);
+    } catch (error) {
+      console.error('Error loading match details:', error);
+      alert('Unable to load match details.');
+    }
+  };
+
   const handleFilterChange = (filterName: keyof typeof filters) => {
     setFilters(prev => ({
       ...prev,
@@ -272,12 +308,29 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
   // Status comes from analysis table (first analysis record for this investor)
   const filteredCompanies = companies.filter(company => {
     const analysisStatus = company.analysis?.[0]?.status?.toLowerCase().replace('-', '').replace(' ', '') || 'submitted';
+    const originalStatus = company.analysis?.[0]?.status?.toLowerCase() || '';
+    
+    // Check if status indicates failure (Rejected, Failed, or contains "fail")
+    const isFailed = originalStatus && (
+      originalStatus === 'rejected' ||
+      originalStatus === 'failed' ||
+      originalStatus.includes('fail')
+    );
+    
+    // If failed filter is unchecked and this is a failed status, exclude it
+    if (isFailed && !filters.failed) return false;
+    
+    // If it's a failed status and failed filter is checked, include it
+    if (isFailed && filters.failed) return true;
+    
+    // Apply other status filters (only if not a failed status)
     if (analysisStatus === 'submitted' && filters.submitted) return true;
     if (analysisStatus === 'inprogress' && filters.inProgress) return true;
     if (analysisStatus === 'screened' && filters.screened) return true;
     if (analysisStatus === 'analyzed' && filters.analyzed) return true;
     if (analysisStatus === 'indiligence' && filters.inDiligence) return true;
     if (analysisStatus === 'rejected' && filters.rejected) return true;
+    
     return false;
   });
 
@@ -312,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
     if (score === null) return null;
     if (score >= 8) return "Invest";
     if (score >= 5) return "Consider";
-    return "Pass";
+    return "Reject";
   };
 
   const stats = [
@@ -487,7 +540,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
                     { key: 'screened', label: 'Screened' },
                     { key: 'analyzed', label: 'Analyzed' },
                     { key: 'inDiligence', label: 'In-Diligence' },
-                    { key: 'rejected', label: 'Rejected' }
+                    { key: 'rejected', label: 'Rejected' },
+                    { key: 'failed', label: 'Failed' }
                   ].map((filter) => (
                     <label key={filter.key} className="flex items-center">
                       <input
@@ -628,7 +682,13 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
                       <div className="flex items-center justify-between mb-1">
                         <p className={`text-xs font-semibold ${isDark ? 'text-silver-400' : 'text-navy-500'}`}>Recommendation</p>
                         {matchScore !== null && !Number.isNaN(matchScore) && (
-                          <span className="text-sm font-semibold text-blue-600">
+                          <span 
+                            className="text-sm font-semibold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShowMatchDetails(company, matchScore);
+                            }}
+                          >
                             Match Score: {matchScore.toFixed(1)}
                           </span>
                         )}
@@ -674,6 +734,99 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
           </div>
         </div>
       </div>
+
+      {/* Match Details Modal */}
+      {showMatchModal && selectedMatchDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50"
+            onClick={() => setShowMatchModal(false)}
+          />
+          <div className={`relative ${isDark ? 'bg-navy-800' : 'bg-white'} rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto`}>
+            <div className="sticky top-0 p-6 border-b border-silver-200 dark:border-navy-700 flex items-center justify-between bg-inherit">
+              <h2 className="text-2xl font-bold text-gold-600">
+                Match Score Details: {selectedMatchDetails.company.name}
+              </h2>
+              <button
+                onClick={() => setShowMatchModal(false)}
+                className={`p-2 rounded-lg ${isDark ? 'hover:bg-navy-700' : 'hover:bg-gray-100'} transition-colors`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-1">{selectedMatchDetails.company.name}</h3>
+                    {selectedMatchDetails.company.industry && (
+                      <p className={`text-sm ${isDark ? 'text-silver-400' : 'text-navy-600'}`}>
+                        {selectedMatchDetails.company.industry}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm uppercase tracking-wide font-semibold text-gray-500 mb-1">
+                      Match Score
+                    </div>
+                    <div className="text-4xl font-bold text-green-500">
+                      {selectedMatchDetails.score.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className={`text-lg font-semibold mb-4 ${isDark ? 'text-silver-200' : 'text-navy-800'}`}>
+                  How the Match Was Calculated
+                </h4>
+                <div className="space-y-3">
+                  {selectedMatchDetails.summary.map((detail, index) => {
+                    const isMismatch = detail.toLowerCase().includes('no overlap') ||
+                      detail.toLowerCase().includes('did not provide') ||
+                      detail.toLowerCase().includes('below target') ||
+                      detail.toLowerCase().includes('not provided') ||
+                      detail.toLowerCase().includes('outside preferred') ||
+                      detail.toLowerCase().includes('no match');
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className={`flex items-start space-x-3 p-3 rounded-lg ${
+                          isDark ? 'bg-navy-700' : 'bg-gray-50'
+                        }`}
+                      >
+                        <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                          isMismatch ? 'bg-red-500' : 'bg-blue-500'
+                        }`} />
+                        <span className={`text-sm ${
+                          isMismatch 
+                            ? isDark ? 'text-red-400' : 'text-red-600'
+                            : isDark ? 'text-silver-300' : 'text-navy-700'
+                        }`}>
+                          {detail}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="sticky bottom-0 p-6 border-t border-silver-200 dark:border-navy-700 flex justify-end bg-inherit">
+              <button
+                onClick={() => setShowMatchModal(false)}
+                className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
+                  isDark 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     {/* Footer */}
     <footer className={`py-12 ${isDark ? 'bg-navy-900' : 'bg-navy-950'} text-white mt-16`}>
