@@ -1436,18 +1436,25 @@ Deno.serve(async (req: Request) => {
     console.log('Waiting for vector store to index files...');
     let vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStore.id);
     let attempts = 0;
-    // For detail-report, reduce wait time since we're just combining reports, not doing complex analysis
-    const maxAttempts = analysisType === 'detail-report' ? 60 : 120; // Wait up to 60 seconds for detail-report, 120 for others
+    
+    // Optimized timeout configuration:
+    // - detail-report: 30 seconds (just combining reports, minimal indexing needed)
+    // - team/product/market/financial: 60 seconds (reduced from 240 seconds)
+    // - valuation: 60 seconds (uses existing reports)
+    // - scorecard/diligence/founder: 60 seconds (uses existing reports)
+    const maxAttempts = analysisType === 'detail-report' ? 30 : 60;
+    const pollInterval = 1000; // Check every 1 second instead of 2 seconds (faster detection)
+    const minRequiredCompleted = 1; // Proceed if at least 1 file is indexed (OpenAI can work with partial indexing)
     
     while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Check every 2 seconds
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
       vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStore.id);
       attempts++;
       
-      console.log(`Vector store status check ${attempts}:`, vectorStoreStatus.status);
+      console.log(`Vector store status check ${attempts}/${maxAttempts}:`, vectorStoreStatus.status);
       console.log(`File counts:`, vectorStoreStatus.file_counts);
       
-      // Check if all files are completed
+      // Check if all files are completed (ideal case)
       if (vectorStoreStatus.file_counts && 
           vectorStoreStatus.file_counts.completed > 0 &&
           vectorStoreStatus.file_counts.completed === vectorStoreStatus.file_counts.total) {
@@ -1455,17 +1462,37 @@ Deno.serve(async (req: Request) => {
         break;
       }
       
+      // Optimized: Proceed if we have at least one file indexed (OpenAI can work with partial indexing)
+      // This significantly reduces wait time for large document sets
+      if (vectorStoreStatus.file_counts && 
+          vectorStoreStatus.file_counts.completed >= minRequiredCompleted &&
+          attempts >= 10) { // Wait at least 10 seconds before proceeding with partial indexing
+        console.log(`Proceeding with partial indexing: ${vectorStoreStatus.file_counts.completed}/${vectorStoreStatus.file_counts.total} files indexed`);
+        break;
+      }
+      
       // Check if indexing failed
       if (vectorStoreStatus.file_counts && vectorStoreStatus.file_counts.failed > 0) {
-        console.error('File indexing failed!');
-        console.error('Failed file count:', vectorStoreStatus.file_counts.failed);
-        throw new Error(`File indexing failed: ${vectorStoreStatus.file_counts.failed} file(s) failed to index`);
+        // Only fail if ALL files failed, otherwise proceed with successful ones
+        if (vectorStoreStatus.file_counts.failed === vectorStoreStatus.file_counts.total) {
+          console.error('All file indexing failed!');
+          throw new Error(`File indexing failed: ${vectorStoreStatus.file_counts.failed} file(s) failed to index`);
+        } else {
+          console.warn(`Some files failed to index (${vectorStoreStatus.file_counts.failed}), but proceeding with successful ones`);
+          break;
+        }
       }
       
       // If we've exhausted attempts and still not completed
       if (attempts >= maxAttempts) {
-        console.warn('Vector store indexing timeout - proceeding anyway');
-        break;
+        // Proceed anyway if we have at least one file indexed
+        if (vectorStoreStatus.file_counts && vectorStoreStatus.file_counts.completed >= minRequiredCompleted) {
+          console.warn(`Vector store indexing timeout - proceeding with ${vectorStoreStatus.file_counts.completed} indexed files`);
+          break;
+        } else {
+          console.warn('Vector store indexing timeout - no files indexed, proceeding anyway (may cause issues)');
+          break;
+        }
       }
     }
     

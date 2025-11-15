@@ -368,12 +368,21 @@ const Dashboard: React.FC<DashboardProps> = ({ isDark, toggleTheme }) => {
     return "Reject";
   };
 
+  // Helper function to normalize status for comparison (case-insensitive, handle variations)
+  const normalizeStatus = (status: string | undefined): string => {
+    if (!status) return '';
+    return status.toLowerCase().replace(/-/g, '').replace(/_/g, '').replace(/\s/g, '');
+  };
+
   const stats = [
     { label: "Total Deals", value: companies.length.toString(), icon: <BarChart3 className="w-6 h-6" /> },
-    { label: "Screened", value: companies.filter(c => c.analysis?.[0]?.status === 'Screened').length.toString(), icon: <CheckCircle className="w-6 h-6" /> },
-    { label: "Analyzed", value: companies.filter(c => c.analysis?.[0]?.status === 'Analyzed').length.toString(), icon: <BarChart3 className="w-6 h-6" /> },
-    { label: "Diligence", value: companies.filter(c => c.analysis?.[0]?.status === 'In-Diligence').length.toString(), icon: <Users className="w-6 h-6" /> },
-    { label: "Rejected", value: companies.filter(c => c.analysis?.[0]?.status === 'Rejected').length.toString(), icon: <XCircle className="w-6 h-6" /> }
+    { label: "Screened", value: companies.filter(c => normalizeStatus(c.analysis?.[0]?.status) === 'screened').length.toString(), icon: <CheckCircle className="w-6 h-6" /> },
+    { label: "Analyzed", value: companies.filter(c => normalizeStatus(c.analysis?.[0]?.status) === 'analyzed').length.toString(), icon: <BarChart3 className="w-6 h-6" /> },
+    { label: "Diligence", value: companies.filter(c => {
+      const normalized = normalizeStatus(c.analysis?.[0]?.status);
+      return normalized === 'indiligence';
+    }).length.toString(), icon: <Users className="w-6 h-6" /> },
+    { label: "Rejected", value: companies.filter(c => normalizeStatus(c.analysis?.[0]?.status) === 'rejected').length.toString(), icon: <XCircle className="w-6 h-6" /> }
   ];
 
   return (

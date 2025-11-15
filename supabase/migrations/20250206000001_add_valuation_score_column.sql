@@ -15,3 +15,6 @@ COMMENT ON COLUMN analysis_reports.valuation_score IS 'Stores Valuation Analysis
 
 
 
+
+
+

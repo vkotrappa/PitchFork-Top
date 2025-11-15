@@ -186,7 +186,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
               <div className="text-4xl font-bold text-gray-600 dark:text-gray-400">
                 PitchFork
               </div>
@@ -297,7 +297,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
             <div className="flex justify-center">
               <img 
                 src="/landing-main-graphic.png" 
-                alt="Pitch Fork Investment Analysis Platform" 
+                alt="PitchFork Investment Analysis Platform" 
                 className="w-full max-w-sm rounded-xl shadow-financial"
               />
             </div>
@@ -476,7 +476,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           <div className="text-center mb-12">
             <h2 className="text-3xl font-inter font-bold mb-4 text-blue-400">Ready to Transform Your Investment Process?</h2>
             <p className="text-xl text-silver-300 mb-8 font-body">
-              Join hundreds of investors making smarter decisions with Pitch Fork
+              Join hundreds of investors making smarter decisions with PitchFork
             </p>
             <Link to="/login" className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg">
               Get Started Today <ChevronRight className="inline w-5 h-5 ml-2" />
@@ -486,7 +486,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="text-2xl font-bold text-blue-400 mb-4">
-                Pitch Fork
+                PitchFork
               </div>
               <p className="text-silver-300 leading-relaxed">
                 Empowering investors with AI-driven analysis for smarter investment decisions.
@@ -516,7 +516,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           </div>
           
           <div className="border-t border-navy-700 pt-8 text-center text-silver-400">
-            <p>&copy; 2025 Pitch Fork. All rights reserved.</p>
+            <p>&copy; 2025 PitchFork. All rights reserved.</p>
           </div>
         </div>
       </footer>

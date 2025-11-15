@@ -196,7 +196,7 @@ Company: ${companyName}
 Message:
 ${body}
 
-This message was sent via Pitch Fork platform from pitchforkmanager@gmail.com.`;
+This message was sent via PitchFork platform from pitchforkmanager@gmail.com.`;
 
     console.log('Email body created:', emailBody);
 

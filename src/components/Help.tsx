@@ -49,9 +49,9 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
             <div className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
-                Pitch Fork
+                PitchFork
               </div>
             </div>
             
@@ -220,7 +220,7 @@ const Help: React.FC<HelpProps> = ({ isDark, toggleTheme }) => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Help & Documentation</h1>
           <p className={`text-xl ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Everything you need to know about using Pitch Fork
+            Everything you need to know about using PitchFork
           </p>
         </div>
 

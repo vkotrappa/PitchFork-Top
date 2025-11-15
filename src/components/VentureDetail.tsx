@@ -2951,16 +2951,6 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                                 return;
                               }
 
-                              // Get public URL for the PDF
-                              const { data: urlData } = supabase.storage
-                                .from('analysis-output-docs')
-                                .getPublicUrl(report.file_path);
-
-                              if (!urlData?.publicUrl) {
-                                alert('Unable to generate report URL');
-                                return;
-                              }
-
                               // Get session for authentication
                               const { data: { session }, error: sessionError } = await supabase.auth.getSession();
                               if (sessionError || !session?.access_token) {
@@ -2968,8 +2958,36 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                                 return;
                               }
 
-                              // Call email function
+                              // Get signed URL for the PDF
                               const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
+                              const downloadUrlFunction = `${supabaseUrl}/functions/v1/get-report-download-url`;
+                              
+                              const urlResponse = await fetch(downloadUrlFunction, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${session.access_token}`,
+                                },
+                                body: JSON.stringify({
+                                  file_path: report.file_path,
+                                  expires_in: 3600 // 1 hour
+                                })
+                              });
+
+                              if (!urlResponse.ok) {
+                                const errorText = await urlResponse.text();
+                                console.error('Failed to get report URL:', errorText);
+                                alert('Unable to generate report URL');
+                                return;
+                              }
+
+                              const { signed_url } = await urlResponse.json();
+                              if (!signed_url) {
+                                alert('Unable to generate report URL');
+                                return;
+                              }
+
+                              // Call email function
                               const functionUrl = `${supabaseUrl}/functions/v1/send-email`;
                               
                               const emailResponse = await fetch(functionUrl, {
@@ -2986,7 +3004,7 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                                   senderName: 'PitchFork',
                                   companyName: company?.name || 'PitchFork',
                                   messageType: 'founder',
-                                  pdfUrl: urlData.publicUrl,
+                                  pdfUrl: signed_url,
                                   pdfFileName: report.file_name || 'founder-report.pdf'
                                 })
                               });
@@ -3012,18 +3030,51 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                         </button>
                       )}
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (!report.file_path) {
                             alert('Report file not found');
                             return;
                           }
-                          const { data: urlData } = supabase.storage
-                            .from('analysis-output-docs')
-                            .getPublicUrl(report.file_path);
-                          if (urlData?.publicUrl) {
-                            setPdfUrl(urlData.publicUrl);
-                            setPdfFileName(report.file_name);
-                            setShowPdfModal(true);
+                          try {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            if (!session?.access_token) {
+                              alert('Authentication required. Please log in again.');
+                              return;
+                            }
+
+                            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
+                            const functionUrl = `${supabaseUrl}/functions/v1/get-report-download-url`;
+
+                            const response = await fetch(functionUrl, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${session.access_token}`,
+                              },
+                              body: JSON.stringify({
+                                file_path: report.file_path,
+                                expires_in: 3600 // 1 hour
+                              })
+                            });
+
+                            if (!response.ok) {
+                              const errorText = await response.text();
+                              console.error('Failed to get report URL:', errorText);
+                              alert('Failed to access report. Please try again.');
+                              return;
+                            }
+
+                            const { signed_url } = await response.json();
+                            if (signed_url) {
+                              setPdfUrl(signed_url);
+                              setPdfFileName(report.file_name);
+                              setShowPdfModal(true);
+                            } else {
+                              alert('Unable to generate report URL');
+                            }
+                          } catch (error) {
+                            console.error('Error accessing report:', error);
+                            alert('Failed to access report. Please try again.');
                           }
                         }}
                         className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors flex-shrink-0"
@@ -3032,16 +3083,49 @@ const VentureDetail: React.FC<VentureDetailProps> = ({ isDark, toggleTheme }) =>
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (!report.file_path) {
                             alert('Report file not found');
                             return;
                           }
-                          const { data: urlData } = supabase.storage
-                            .from('analysis-output-docs')
-                            .getPublicUrl(report.file_path);
-                          if (urlData?.publicUrl) {
-                            window.open(urlData.publicUrl, '_blank');
+                          try {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            if (!session?.access_token) {
+                              alert('Authentication required. Please log in again.');
+                              return;
+                            }
+
+                            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nsimmsznrutwgtkkblgw.supabase.co';
+                            const functionUrl = `${supabaseUrl}/functions/v1/get-report-download-url`;
+
+                            const response = await fetch(functionUrl, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${session.access_token}`,
+                              },
+                              body: JSON.stringify({
+                                file_path: report.file_path,
+                                expires_in: 3600 // 1 hour
+                              })
+                            });
+
+                            if (!response.ok) {
+                              const errorText = await response.text();
+                              console.error('Failed to get report URL:', errorText);
+                              alert('Failed to download report. Please try again.');
+                              return;
+                            }
+
+                            const { signed_url } = await response.json();
+                            if (signed_url) {
+                              window.open(signed_url, '_blank');
+                            } else {
+                              alert('Unable to generate report URL');
+                            }
+                          } catch (error) {
+                            console.error('Error downloading report:', error);
+                            alert('Failed to download report. Please try again.');
                           }
                         }}
                         className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded transition-colors flex-shrink-0"
