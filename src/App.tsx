@@ -239,69 +239,59 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       </nav>
 
       {/* Hero Section */}
-      <section className={`relative py-16 ${isDark ? 'bg-financial-gradient' : 'bg-gradient-to-br from-silver-50 to-navy-50'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-            {/* Left Column - Text Content */}
-            <div className="text-left relative">
-              <p className="text-2xl md:text-3xl font-inter italic mb-2 text-slate-900 dark:text-silver-100">
-                Open Innovation
+      <section className="relative min-h-screen flex">
+        {/* Left Column - Black Background with Text Content */}
+        <div className="w-full lg:w-[60%] bg-black text-white flex items-start pt-8 pb-16 px-4 sm:px-6 lg:px-12">
+          <div className="max-w-2xl">
+            <p className="text-lg md:text-xl font-aptos italic mb-6 text-white/80 tracking-wide">
+              Open Innovation
+            </p>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-aptos font-bold mb-8 text-blue-300 leading-[1.1] tracking-tight">
+              AI-Driven VC Investment Platform
+            </h1>
+            <h2 className="text-xl md:text-2xl font-aptos font-semibold mb-10 text-white/95 leading-relaxed tracking-wide">
+              Smart Screening, Analysis &amp; Evaluation in Minutes
+            </h2>
+            <div className="space-y-5 mb-10 text-base md:text-lg text-white/85 leading-relaxed">
+              <p className="font-light">
+                <strong className="font-semibold text-sky-300">Investors:</strong> Customizable AI analysis of Product, Market, Team, and Financials so you can evaluate 10x deals in 1/10th the time.
               </p>
-              <h1 className="text-4xl md:text-5xl font-inter font-bold mb-4 text-blue-600">
-                AI-Driven VC Investment Platform
-              </h1>
-              <h2 className="text-2xl md:text-3xl font-inter font-bold mb-6 text-slate-900 dark:text-silver-100">
-                Smart Screening, Analysis &amp; Evaluation in Minutes
-              </h2>
-              <p className="text-lg mb-6 text-slate-600 dark:text-silver-300 leading-relaxed font-body">
-                <strong>Investors:</strong> Customizable AI analysis of Product, Market, Team, and Financials so you can evaluate 10x deals in 1/10th the time.<br />
-                <strong>Founders:</strong> AI Driven matching to investors and prompt feedback.
+              <p className="font-light">
+                <strong className="font-semibold text-sky-300">Founders:</strong> AI Driven matching to investors and prompt feedback.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center mb-4">
-                <div>
-                  <p className="text-base text-slate-600 dark:text-silver-300">
-                    We are launching in phases. We welcome Investors and Founders to join us.
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <a
-                    href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg"
-                  >
-                    Join our List <ChevronRight className="inline w-5 h-5 ml-2" />
-                  </a>
-                  <img
-                    src="/PitchFork-QRCode.png"
-                    alt="Join PitchFork Interest List QR Code"
-                    className="w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Social Proof */}
-              <div className="mt-10">
-                <div className="flex items-center space-x-2 mb-2">
-                  {[1,2,3,4,5].map((star) => (
-                    <Star key={star} className="w-5 h-5 fill-blue-400 text-blue-400" />
-                  ))}
-                </div>
-                <p className={`text-sm ${isDark ? 'text-silver-300' : 'text-slate-600'} font-medium`}>
-                  Rated 4.9/5 by over 500+ registered investors
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div>
+                <p className="text-sm md:text-base text-white/70 leading-relaxed">
+                  We are launching in phases. We welcome Investors and Founders to join us.
                 </p>
               </div>
-            </div>
-
-            {/* Right Column - Mock Dashboard Visual */}
-            <div className="flex justify-center">
-              <img 
-                src="/landing-main-graphic.png" 
-                alt="PitchFork Investment Analysis Platform" 
-                className="w-full max-w-sm rounded-xl shadow-financial"
-              />
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://forms.gle/GyhLRQ3jjF6tPwCK8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-orange-600 text-white px-8 py-4 rounded-lg text-base md:text-lg font-medium hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg tracking-wide"
+                >
+                  Join our List <ChevronRight className="inline w-5 h-5 ml-2" />
+                </a>
+                <img
+                  src="/PitchFork-QRCode.png"
+                  alt="Join PitchFork Interest List QR Code"
+                  className="w-16 h-16 rounded-lg border border-white/20 shadow-sm"
+                />
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Right Column - Business Meeting Photo */}
+        <div className="w-full lg:w-[40%] relative flex items-start justify-center bg-black pt-8">
+          <img 
+            src="/business-meeting.jpeg" 
+            alt="Business meeting" 
+            className="w-[90%] h-auto object-contain"
+          />
         </div>
       </section>
 
@@ -309,7 +299,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       <section className={`py-16 ${isDark ? 'bg-navy-900' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">Why Choose PitchFork?</h2>
+            <h2 className="text-4xl font-aptos font-bold mb-4 text-blue-600">Why Choose PitchFork?</h2>
             <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} max-w-3xl mx-auto font-body`}>
               Intelligent investor-founder matching, automated screening, 4-category AI analysis, and sophisticated report generation in minutes
             </p>
@@ -318,7 +308,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
             {benefits.map((benefit, index) => (
               <div key={index} className={`p-6 rounded-xl ${isDark ? 'bg-navy-800 border border-navy-700' : 'bg-silver-50 border border-silver-200'} hover:shadow-financial transition-all duration-300 hover:scale-105`}>
                 <div className="mb-4">{benefit.icon}</div>
-                <h3 className="text-xl font-inter font-bold mb-3 text-slate-900 dark:text-silver-100">{benefit.title}</h3>
+                <h3 className="text-xl font-aptos font-bold mb-3 text-slate-900 dark:text-silver-100">{benefit.title}</h3>
                 <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} leading-relaxed font-body`}>{benefit.description}</p>
               </div>
             ))}
@@ -330,7 +320,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       <section className={`py-16 ${isDark ? 'bg-navy-950' : 'bg-gradient-to-br from-blue-50 to-silver-100'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">The PitchFork Workflow</h2>
+            <h2 className="text-4xl font-aptos font-bold mb-4 text-blue-600">The PitchFork Workflow</h2>
             <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} max-w-3xl mx-auto font-body`}>
               From intelligent investor-founder matching to sophisticated report generation in minutes—streamlined deal evaluation powered by AI
             </p>
@@ -341,7 +331,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
                 <div className="absolute -top-4 -left-4 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">
                   {step.step}
                 </div>
-                <h3 className="text-xl font-inter font-bold mb-3 mt-2 text-slate-900 dark:text-silver-100">{step.title}</h3>
+                <h3 className="text-xl font-aptos font-bold mb-3 mt-2 text-slate-900 dark:text-silver-100">{step.title}</h3>
                 <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} leading-relaxed font-body`}>{step.description}</p>
               </div>
             ))}
@@ -353,7 +343,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       <section className={`py-16 ${isDark ? 'bg-navy-900' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">Comprehensive 4-Category Analysis</h2>
+            <h2 className="text-4xl font-aptos font-bold mb-4 text-blue-600">Comprehensive 4-Category Analysis</h2>
             <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} max-w-3xl mx-auto font-body`}>
               Every venture receives deep analysis across 16 subcategories organized into four key dimensions
             </p>
@@ -430,7 +420,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       <section className={`py-16 ${isDark ? 'bg-navy-900' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">What Our Users Say</h2>
+            <h2 className="text-4xl font-aptos font-bold mb-4 text-blue-600">What Our Users Say</h2>
             <p className={`text-xl ${isDark ? 'text-silver-300' : 'text-slate-600'} font-body`}>
               Trusted by leading angel investors and investment groups
             </p>
@@ -446,7 +436,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
                 <p className={`mb-4 italic ${isDark ? 'text-silver-300' : 'text-slate-600'} leading-relaxed font-body`}>
                   "{testimonial.quote}"
                 </p>
-                <p className="font-inter font-bold text-blue-600">- {testimonial.author}</p>
+                <p className="font-aptos font-bold text-blue-600">- {testimonial.author}</p>
               </div>
             ))}
           </div>
@@ -457,12 +447,12 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       <section className={`py-16 ${isDark ? 'bg-navy-950' : 'bg-gradient-to-br from-silver-50 to-navy-50'}`}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-           <h2 className="text-4xl font-inter font-bold mb-4 text-blue-600">Frequently Asked Questions</h2>
+           <h2 className="text-4xl font-aptos font-bold mb-4 text-blue-600">Frequently Asked Questions</h2>
           </div>
           <div className="space-y-8">
             {faqs.map((faq, index) => (
               <div key={index} className={`p-6 rounded-xl ${isDark ? 'bg-navy-800 border border-navy-700' : 'bg-white border border-silver-200'} shadow-lg hover:shadow-xl transition-all duration-300`}>
-               <h3 className="text-xl font-inter font-bold mb-3 text-slate-900 dark:text-silver-100">{faq.question}</h3>
+               <h3 className="text-xl font-aptos font-bold mb-3 text-slate-900 dark:text-silver-100">{faq.question}</h3>
                <p className={`${isDark ? 'text-silver-300' : 'text-slate-600'} leading-relaxed font-body`}>{faq.answer}</p>
               </div>
             ))}
@@ -474,7 +464,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       <footer className={`py-16 ${isDark ? 'bg-navy-900' : 'bg-navy-950'} text-white`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-inter font-bold mb-4 text-blue-400">Ready to Transform Your Investment Process?</h2>
+            <h2 className="text-3xl font-aptos font-bold mb-4 text-blue-400">Ready to Transform Your Investment Process?</h2>
             <p className="text-xl text-silver-300 mb-8 font-body">
               Join hundreds of investors making smarter decisions with PitchFork
             </p>

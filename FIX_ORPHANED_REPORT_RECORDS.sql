@@ -104,3 +104,5 @@ GROUP BY a.id, a.status, a.analyzed_at, a.investor_user_id, u.email;
 
 
 
+
+

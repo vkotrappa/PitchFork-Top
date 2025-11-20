@@ -36,3 +36,5 @@ COMMENT ON COLUMN investor_details.sector_min_arr IS
 
 
 
+
+

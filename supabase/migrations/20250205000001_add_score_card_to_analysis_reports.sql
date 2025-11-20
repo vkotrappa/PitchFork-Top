@@ -19,3 +19,5 @@ COMMENT ON COLUMN analysis_reports.score_card IS 'Stores summary scorecard data 
 
 
 
+
+
