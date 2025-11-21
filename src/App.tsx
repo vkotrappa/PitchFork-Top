@@ -239,9 +239,9 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex">
+      <section className="relative flex">
         {/* Left Column - Black Background with Text Content */}
-        <div className="w-full lg:w-[60%] bg-black text-white flex items-start pt-8 pb-0 px-4 sm:px-6 lg:px-6">
+        <div className="w-full lg:w-[60%] bg-black text-white flex items-start pt-8 pb-8 px-4 sm:px-6 lg:px-6">
           <div className="max-w-2xl">
             <p className="text-lg md:text-xl font-aptos italic mb-6 text-white/80 tracking-wide">
               Open Innovation
@@ -286,7 +286,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
         </div>
 
         {/* Right Column - Business Meeting Photo */}
-        <div className="w-full lg:w-[40%] relative flex items-start justify-center bg-black pt-8 pb-0">
+        <div className="w-full lg:w-[40%] relative flex items-start justify-center bg-black pt-8 pb-8">
           <img 
             src="/business-meeting.jpeg" 
             alt="Business meeting" 
