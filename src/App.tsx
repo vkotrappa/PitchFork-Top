@@ -187,7 +187,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
-              <div className="text-4xl font-bold text-gray-600 dark:text-gray-400">
+              <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
                 PitchFork
               </div>
             </div>
@@ -241,18 +241,18 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
       {/* Hero Section */}
       <section className="relative min-h-screen flex">
         {/* Left Column - Black Background with Text Content */}
-        <div className="w-full lg:w-[60%] bg-black text-white flex items-start pt-8 pb-16 px-4 sm:px-6 lg:px-12">
+        <div className="w-full lg:w-[60%] bg-black text-white flex items-start pt-8 pb-0 px-4 sm:px-6 lg:px-6">
           <div className="max-w-2xl">
             <p className="text-lg md:text-xl font-aptos italic mb-6 text-white/80 tracking-wide">
               Open Innovation
             </p>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-aptos font-bold mb-8 text-blue-300 leading-[1.1] tracking-tight">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-aptos font-bold mb-8 text-blue-300 leading-[1.1] tracking-tight">
               AI-Driven VC Investment Platform
             </h1>
-            <h2 className="text-xl md:text-2xl font-aptos font-semibold mb-10 text-white/95 leading-relaxed tracking-wide">
+            <h2 className="text-lg md:text-xl font-aptos font-semibold italic mb-10 text-white/95 leading-relaxed tracking-wide">
               Smart Screening, Analysis &amp; Evaluation in Minutes
             </h2>
-            <div className="space-y-5 mb-10 text-base md:text-lg text-white/85 leading-relaxed">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 text-base md:text-lg text-white/85 leading-relaxed">
               <p className="font-light">
                 <strong className="font-semibold text-sky-300">Investors:</strong> Customizable AI analysis of Product, Market, Team, and Financials so you can evaluate 10x deals in 1/10th the time.
               </p>
@@ -273,7 +273,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
                   rel="noopener noreferrer"
                   className="bg-orange-600 text-white px-8 py-4 rounded-lg text-base md:text-lg font-medium hover:bg-orange-700 transition-all duration-300 inline-flex items-center shadow-lg tracking-wide"
                 >
-                  Join our List <ChevronRight className="inline w-5 h-5 ml-2" />
+                  Join Us <ChevronRight className="inline w-5 h-5 ml-2" />
                 </a>
                 <img
                   src="/PitchFork-QRCode.png"
@@ -286,7 +286,7 @@ function HomePage({ isDark, setIsDark, isMobileMenuOpen, setIsMobileMenuOpen }: 
         </div>
 
         {/* Right Column - Business Meeting Photo */}
-        <div className="w-full lg:w-[40%] relative flex items-start justify-center bg-black pt-8">
+        <div className="w-full lg:w-[40%] relative flex items-start justify-center bg-black pt-8 pb-0">
           <img 
             src="/business-meeting.jpeg" 
             alt="Business meeting" 

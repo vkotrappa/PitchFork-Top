@@ -292,9 +292,9 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+                <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
                 <div className="text-2xl font-bold text-blue-600">
-                  Pitch Fork
+                  PitchFork
                 </div>
               </div>
               
@@ -349,7 +349,7 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
               <Building2 className="w-16 h-16 mx-auto mb-6 text-orange-500" />
               <h1 className="text-3xl font-bold text-orange-600 mb-4">Create Your Company Profile</h1>
               <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8 max-w-2xl mx-auto`}>
-                Welcome to Pitch Fork! To get started, create your company profile so we can match you with the right investors.
+                Welcome to PitchFork! To get started, create your company profile so we can match you with the right investors.
               </p>
               <Link 
                 to="/submit-pitch-deck"
@@ -368,7 +368,7 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <div>
                 <div className="text-xl font-bold text-blue-400 mb-3">
-                  Pitch Fork
+                  PitchFork
                 </div>
                 <p className="text-gray-300">
                   Empowering investors with AI-driven analysis for smarter investment decisions.
@@ -398,7 +398,7 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
             </div>
             
             <div className="border-t border-gray-700 pt-6 text-center text-gray-300">
-              <p>&copy; 2025 Pitch Fork. All rights reserved.</p>
+              <p>&copy; 2025 PitchFork. All rights reserved.</p>
             </div>
           </div>
         </footer>
@@ -413,9 +413,9 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold text-blue-600">
-                Pitch Fork
+                PitchFork
               </div>
             </div>
             
@@ -663,7 +663,7 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div>
               <div className="text-xl font-bold text-blue-400 mb-3">
-                Pitch Fork
+                PitchFork
               </div>
               <p className="text-gray-300">
                 Empowering investors with AI-driven analysis for smarter investment decisions.
@@ -693,7 +693,7 @@ const FounderDashboard: React.FC<FounderDashboardProps> = ({ isDark, toggleTheme
           </div>
           
           <div className="border-t border-gray-700 pt-6 text-center text-gray-300">
-            <p>&copy; 2025 Pitch Fork. All rights reserved.</p>
+            <p>&copy; 2025 PitchFork. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -349,8 +349,8 @@ const FounderSubmission: React.FC<FounderSubmissionProps> = ({ isDark, toggleThe
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
-              <span className="text-2xl font-bold text-orange-500">Pitch Fork</span>
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
+              <span className="text-2xl font-bold text-orange-500">PitchFork</span>
             </Link>
             <div className="flex items-center gap-3">
               <button

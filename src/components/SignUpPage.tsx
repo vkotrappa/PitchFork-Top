@@ -83,7 +83,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ isDark, toggleTheme }) => {
 
         // Check if email confirmation is required
         if (!data.session) {
-          setSuccess('Thank you for registering with Pitch Fork! Please check your email for a confirmation link. Once confirmed, you can sign in and access your dashboard.');
+          setSuccess('Thank you for registering with PitchFork! Please check your email for a confirmation link. Once confirmed, you can sign in and access your dashboard.');
           setIsLoading(false);
         } else {
           // Wait a moment for the trigger to create the user profile
@@ -127,7 +127,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ isDark, toggleTheme }) => {
             // Store company ID for later use
             sessionStorage.setItem('companyId', company.id);
 
-            setSuccess('Welcome to Pitch Fork! Please upload your pitch deck to continue.');
+            setSuccess('Welcome to PitchFork! Please upload your pitch deck to continue.');
 
             // Navigate after a brief delay to show success message
             setTimeout(() => {
@@ -153,7 +153,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ isDark, toggleTheme }) => {
               return;
             }
 
-            setSuccess('Welcome to Pitch Fork! Let’s finish setting up your investor preferences.');
+            setSuccess('Welcome to PitchFork! Let’s finish setting up your investor preferences.');
             setTimeout(() => {
               navigate('/investor-preferences');
             }, 800);
@@ -173,9 +173,9 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ isDark, toggleTheme }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold text-blue-600">
-                Pitch Fork
+                PitchFork
               </div>
             </Link>
             
@@ -206,7 +206,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ isDark, toggleTheme }) => {
               Create Account
             </h2>
             <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Join Pitch Fork today
+              Join PitchFork today
             </p>
           </div>
 

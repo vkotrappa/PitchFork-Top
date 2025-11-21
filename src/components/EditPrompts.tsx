@@ -268,9 +268,9 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
             <div className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
-                Pitch Fork
+                PitchFork
               </div>
             </div>
             
@@ -715,7 +715,7 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent mb-4">
-                Pitch Fork
+                PitchFork
               </div>
               <p className="text-silver-300 leading-relaxed">
                 Empowering investors with AI-driven analysis for smarter investment decisions.
@@ -745,7 +745,7 @@ const EditPrompts: React.FC<EditPromptsProps> = ({ isDark, toggleTheme }) => {
           </div>
           
           <div className="border-t border-navy-700 pt-8 text-center text-silver-400">
-            <p>&copy; 2025 Pitch Fork. All rights reserved.</p>
+            <p>&copy; 2025 PitchFork. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -108,3 +108,4 @@ CREATE INDEX IF NOT EXISTS idx_investor_details_business_model ON investor_detai
 
 
 
+

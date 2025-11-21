@@ -307,9 +307,9 @@ const SubmitFiles: React.FC<SubmitFilesProps> = ({ isDark, toggleTheme }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
             <div className="flex items-center">
-              <img src="/pitch-fork3.png" alt="Pitch Fork Logo" className="w-8 h-8 mr-3" />
+              <img src="/pitch-fork3.png" alt="PitchFork Logo" className="w-8 h-8 mr-3" />
               <div className="text-2xl font-bold bg-gold-gradient bg-clip-text text-transparent">
-                Pitch Fork
+                PitchFork
               </div>
             </div>
             
@@ -795,7 +795,7 @@ const SubmitFiles: React.FC<SubmitFilesProps> = ({ isDark, toggleTheme }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div>
               <div className="text-xl font-bold text-blue-400 mb-3">
-                Pitch Fork
+                PitchFork
               </div>
               <p className="text-gray-300">
                 Empowering investors with AI-driven analysis for smarter investment decisions.
@@ -825,7 +825,7 @@ const SubmitFiles: React.FC<SubmitFilesProps> = ({ isDark, toggleTheme }) => {
           </div>
           
           <div className="border-t border-gray-700 pt-6 text-center text-gray-300">
-            <p>&copy; 2025 Pitch Fork. All rights reserved.</p>
+            <p>&copy; 2025 PitchFork. All rights reserved.</p>
           </div>
         </div>
       </footer>

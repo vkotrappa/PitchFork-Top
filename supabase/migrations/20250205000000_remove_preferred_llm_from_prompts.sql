@@ -21,3 +21,4 @@ ALTER TABLE prompts DROP COLUMN IF EXISTS preferred_llm;
 
 
 
+
